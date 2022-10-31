@@ -14,6 +14,7 @@ module Toan.SExpr.SExpr (
 )
 where
 
+import Data.Bifunctor
 import Data.Functor.Foldable.TH (makeBaseFunctor)
 
 data SExpr a = SList [SExpr a]
@@ -21,3 +22,13 @@ data SExpr a = SList [SExpr a]
   deriving (Eq, Show, Functor, Traversable, Foldable)
 
 makeBaseFunctor ''SExpr
+
+instance (Show a, Show r) => Show (SExprF a r) where
+  show (SListF xs) = "SListF (" ++ show xs ++ ")"
+  show (SAtomF a) = show a
+
+instance Bifunctor SExprF where
+  first foo (SAtomF a) = SAtomF (foo a)
+  first _ (SListF xs) = (SListF xs)
+
+  second foo x = fmap foo x

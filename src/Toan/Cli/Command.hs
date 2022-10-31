@@ -15,10 +15,8 @@ module Toan.Cli.Command
 
 import Data.Void (Void)
 import Control.Monad.Except (runExceptT, ExceptT(..), lift)
-import Toan.SExpr.SExpr (SExpr)
 import qualified Text.Megaparsec as M
 import qualified Toan.Parser.Parser as P
-import qualified Toan.Parser.Token as P
 
 -- | The commands accepted by the command line interface
 data Command = CEval FilePath
@@ -34,10 +32,10 @@ runCommand' (CEval inputPath) = do
   lift $ putStrLn (show sexp)
 
 -- Decode file as an SExpr
-decodeFile :: FilePath -> ExceptT String IO (SExpr P.Token)
+decodeFile :: FilePath -> ExceptT String IO P.PSExpr
 decodeFile inputPath = ExceptT (do
   input <- readFile inputPath
-  case M.runParser (P.decodeOne :: M.Parsec Void String (SExpr P.Token)) inputPath input of
+  case M.runParser (P.decodeOne :: M.Parsec Void String P.PSExpr) inputPath input of
     Left err -> return $ Left $ M.errorBundlePretty err
     Right sexp -> return $ Right sexp
   )

@@ -27,6 +27,7 @@ dependencies:
 - megaparsec
 - optparse-applicative
 - mtl
+- bifunctors
 
 ghc-options:
 - -Wall
