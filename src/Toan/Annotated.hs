@@ -13,7 +13,7 @@
 module Toan.Annotated (
   Annotated(..),
   AnnotatedF(..),
-  mapFunctor,
+  mapBaseFunctor,
   mapAnnotation
 )
 where
@@ -51,12 +51,12 @@ instance (Functor f) => Recursive (Annotated a f) where
 instance (Functor f) => Corecursive (Annotated a f) where
   embed (AnnotatedF a x) = Annotated a x
 
-mapFunctor :: forall a b c f 
-            . (Bifunctor f, Functor (f b))
-            => (b -> c) 
-            -> (Annotated a (f b)) 
-            -> (Annotated a (f c))
-mapFunctor foo = cata go
+mapBaseFunctor :: forall a b c f 
+                . (Bifunctor f, Functor (f b))
+                => (b -> c) 
+                -> (Annotated a (f b)) 
+                -> (Annotated a (f c))
+mapBaseFunctor foo = cata go
   where go :: AnnotatedF a (f b) (Annotated a (f c)) -> (Annotated a (f c))
         go (AnnotatedF a x) = Annotated a (first foo x)
 
