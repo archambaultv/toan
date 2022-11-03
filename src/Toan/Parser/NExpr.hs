@@ -32,7 +32,7 @@ lambdaKeyword :: T.Text
 lambdaKeyword = "lambda"
 
 -- Takes care of errors and location automatically
-para' :: (SExprF Token (PSExpr, PNExpr) -> Validation [Error] (NExprF PNExpr))
+para' :: (SExprF Token (PSExpr, PNExpr) -> Validation ErrorType (NExprF PNExpr))
       -> PSExpr 
       -> Validation [Error] PNExpr
 para' f = paraT f'
@@ -42,13 +42,12 @@ para' f = paraT f'
   f' (Failure err) = Failure err
   f' (Success (AnnotatedF (l, x))) = 
     case f x of
-      -- Failure (Error Nothing err) -> Failure (Just l) err
-      Failure err -> Failure err
+      Failure err -> Failure [Error (Just l) err]
       Success x' -> Success $ Annotated (l, x')
 
 sexprToExpr :: PSExpr -> Either [Error] PNExpr
 sexprToExpr = validationToEither . para' alg
-  where alg :: SExprF Token (PSExpr, PNExpr) -> Validation [Error] (NExprF PNExpr)
+  where alg :: SExprF Token (PSExpr, PNExpr) -> Validation ErrorType (NExprF PNExpr)
         alg = undefined
         -- alg (SAtomF (_, TIdentifier x)) = pure $ EName x
         -- alg (SListF []) = Failure $ (Error Nothing EmptySExpr)
