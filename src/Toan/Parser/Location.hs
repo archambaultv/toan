@@ -13,12 +13,15 @@ module Toan.Parser.Location
     M.initialPos,
     Location(..),
     Located,
+    Located',
+    LocatedF',
     located,
     startPosPretty,
     endPosPretty
    )
   where
 
+import Toan.Annotated (Annotated, AnnotatedF)
 import qualified Text.Megaparsec as M
 
 -- Taken from https://www.reddit.com/r/haskell/comments/4x22f9/labelling_ast_nodes_with_locations/d6cmdy9/
@@ -37,6 +40,12 @@ endPosPretty (Span _ s) = M.sourcePosPretty s
 
 -- | The 'Located' datatype adds a source span to the type @a@
 type Located a = (Location, a)
+
+-- | The 'Located' datatype adds a source span to the type @a@ recursively
+type Located' a = Annotated Location a
+
+-- | The 'Located' datatype adds a source span to the type @a@ recursively
+type LocatedF' a = AnnotatedF Location a
 
 -- | The 'located' function adds a source span to a parser.
 located :: (M.MonadParsec e s m, M.TraversableStream s) => m a -> m (Located a)

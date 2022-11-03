@@ -16,7 +16,7 @@ module Toan.Cli.Command
 import Data.Void (Void)
 import Control.Monad.Except (runExceptT, ExceptT(..), lift)
 import qualified Text.Megaparsec as M
-import qualified Toan.Parser.Parser as P
+import qualified Toan.Parser.SExpr as P
 
 -- | The commands accepted by the command line interface
 data Command = CEval FilePath

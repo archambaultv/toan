@@ -13,17 +13,16 @@ module Toan.Language.Expr (
   Index,
   Expr(..),
   ExprF(..),
-  freeVars
+  algFreeVars
 )
 where
 
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Text as T
-import Data.Functor.Foldable (cata)
 import Data.Functor.Foldable.TH (makeBaseFunctor)
+import Toan.Language.NExpr (Name)
 
-type Name = T.Text
 type Index = Int
 
 data Expr
@@ -35,9 +34,15 @@ data Expr
 
 makeBaseFunctor ''Expr
 
-freeVars :: Expr -> Set T.Text
-freeVars = cata alg
-  where
-    alg :: ExprF (Set T.Text) -> Set T.Text
-    alg (ENameF name) = S.singleton name
-    alg fVars = foldr S.union S.empty fVars
+-- The functions below are to be used with cata directly with Expr or by
+-- filtering with aFunctorF for AExpr.
+-- ex:
+--   freeVars :: Expr -> Set T.Text
+--   freeVars = cata algFV
+--   freeVarsA :: AExpr a -> Set T.Text
+--   freeVarsA = cata (algFV . aFunctorF)
+
+-- Compute the set of free variables
+algFreeVars :: ExprF (Set T.Text) -> Set T.Text
+algFreeVars (ENameF name) = S.singleton name
+algFreeVars fVars = foldr S.union S.empty fVars

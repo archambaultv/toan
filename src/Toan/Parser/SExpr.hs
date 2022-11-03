@@ -8,9 +8,13 @@
 -- Maintainer  :  Vincent Archambault <vincentarchambault@icloud.com>
 -- Stability   :  experimental
 
-module Toan.Parser.Parser
+module Toan.Parser.SExpr
 ( 
+  Token(..),
+  token,
+  identifier,
   PSExpr,
+  PSExprF,
   parseSExpr,
   decodeOne,
   decode
@@ -18,16 +22,30 @@ module Toan.Parser.Parser
 
 import Data.Proxy (Proxy(..))
 import Control.Applicative (empty)
+import Data.Char (isAlphaNum, isSymbol)
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as M
 import qualified Text.Megaparsec.Char.Lexer as L
+import qualified Data.Text as T
 import Toan.SExpr.SExpr
 import Toan.Annotated
 import Toan.Parser.Location
-import Toan.Parser.Token
 
 -- A parsed SExpr is an expresssion of tokens with location annotation
-type PSExpr = Annotated Location (SExprF Token)
+data Token = TIdentifier T.Text
+  deriving (Eq, Show)
+
+token :: (M.MonadParsec e s m, M.Token s ~ Char) => m Token
+token = fmap TIdentifier identifier
+
+identifier :: forall e s m . (M.MonadParsec e s m, M.Token s ~ Char) => m T.Text
+identifier = do
+  c1 <- M.letterChar 
+  cs <- M.takeWhileP Nothing (\c -> isAlphaNum c || isSymbol c)
+  return $ T.pack $ (c1 : M.chunkToTokens (Proxy :: Proxy s) cs)
+
+type PSExpr = Located' (SExprF Token)
+type PSExprF = LocatedF' (SExprF Token)
 
 ws :: forall e s m .  (M.MonadParsec e s m, M.Token s ~ Char) => m ()
 ws = L.space M.space1 
@@ -46,7 +64,7 @@ sExprList = do
     ((Span pos1 _), _) <- L.lexeme ws sexpStart
     xs <- M.sepEndBy parseSExpr ws
     ((Span _ pos2), _) <- sexpEnd
-    return $ Annotated (Span pos1 pos2) (SListF xs)
+    return $ Annotated ((Span pos1 pos2), (SListF xs))
 
 -- | The 'parseSExpr' function return a parser for parsing
 -- S-expression ('SExpr'), that is either an atom (@'SAtom' _@) or a
@@ -54,7 +72,7 @@ sExprList = do
 sExprToken :: (M.MonadParsec e s m, M.TraversableStream s, M.Token s ~ Char) => m PSExpr
 sExprToken = do
   (l, t) <- located token
-  return $ Annotated l (SAtomF t)
+  return $ Annotated (l, (SAtomF t))
 
 -- | The 'parseSExpr' function return a parser for parsing
 -- S-expression ('SExpr'), that is either an atom (@'SAtom' _@) or a
