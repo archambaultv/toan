@@ -24,6 +24,7 @@ data ErrorType
   | EmptySExpr
   | LambdaArgNotIdent
   | LambdaNoArgs
+  | FunctionAppNoArg
 
   deriving (Eq)
 
@@ -32,9 +33,10 @@ data Error = Error (Maybe Location) ErrorType
 
 showErrorType :: ErrorType -> T.Text
 showErrorType (KeywordMisused x) = T.concat ["'", x, "' is a reserved keyword."]
-showErrorType EmptySExpr = "Illegal empty sexpression"
-showErrorType LambdaArgNotIdent = "Lambda argument is not a valid identifier"
-showErrorType LambdaNoArgs = "Lambda expression must have at least one argument"
+showErrorType EmptySExpr = "Illegal empty sexpression."
+showErrorType LambdaArgNotIdent = "Lambda argument is not a valid identifier."
+showErrorType LambdaNoArgs = "Lambda expression must have at least one argument."
+showErrorType FunctionAppNoArg = "Function call without any argument."
 
 showError :: Error -> T.Text
 showError (Error Nothing err) = showErrorType err

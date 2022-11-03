@@ -9,7 +9,9 @@
 
 module Toan.RecursionScheme (
   cataT,
-  paraT
+  cataM,
+  paraT,
+  paraM
 )
 where
 
@@ -19,22 +21,36 @@ import Data.Functor.Foldable
 -- For example, to compute with errors without having to manually handle them :
 -- cataT (ListF Int Int -> Either Error Int)
 cataT :: forall a f t 
-        . (Monad f, Traversable (Base t), Recursive t) 
-        => (Base t a -> f a) 
+        . (Applicative f, Traversable (Base t), Recursive t) 
+        => (f (Base t a) -> f a) 
         -> t
         -> f a
 cataT f = c
   where c :: t -> f a
-        c = (\x -> sequenceA x >>= f) . fmap c . project
+        c = f . sequenceA . fmap c . project
+
+cataM :: forall a f t 
+        . (Monad f, Traversable (Base t), Recursive t) 
+        => (Base t a -> f a) 
+        -> t
+        -> f a
+cataM f = cataT (\x -> x >>= f)
 
 -- Paramorphism for traversable structure and effectful actions
 paraT :: forall a f t 
-        . (Monad f, Traversable (Base t), Recursive t) 
-        => (Base t (t, a) -> f a) 
+        . (Applicative f, Traversable (Base t), Recursive t) 
+        => (f (Base t (t, a)) -> f a) 
         -> t
         -> f a
 paraT f = p 
   where p :: t -> f a
-        p x = (\z -> traverse tr z >>= f) . fmap ((,) <*> p) $ project x
+        p x = f . traverse tr . fmap ((,) <*> p) $ project x
 
         tr (x, y) = (x,) <$> y
+
+paraM :: forall a f t 
+        . (Monad f, Traversable (Base t), Recursive t) 
+        => (Base t (t, a) -> f a) 
+        -> t
+        -> f a
+paraM f = paraT (\x -> x >>= f)

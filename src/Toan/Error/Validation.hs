@@ -9,7 +9,8 @@
 
 module Toan.Error.Validation (
   Validation(..),
-  eitherToValidation
+  eitherToValidation,
+  validationToEither
 )
 where
 
@@ -29,3 +30,7 @@ instance Semigroup err => Applicative (Validation err) where
 eitherToValidation :: Either a b -> Validation a b
 eitherToValidation (Left a) = Failure a
 eitherToValidation (Right b) = Success b
+
+validationToEither :: Validation a b -> Either a b
+validationToEither (Failure a) = Left a
+validationToEither (Success b) = Right b

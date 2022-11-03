@@ -14,7 +14,8 @@ module Toan.Annotated (
   Annotated(..),
   AnnotatedF(..),
   mapBaseFunctor,
-  mapAnnotation
+  mapAnnotation,
+  noAnnotation
 )
 where
 
@@ -63,3 +64,10 @@ mapAnnotation :: forall a1 a2 c f
 mapAnnotation foo = cata go
   where go :: AnnotatedF a1 (f c) (Annotated a2 (f c)) -> (Annotated a2 (f c))
         go (AnnotatedF (a, x)) = Annotated ((foo a), x)
+
+noAnnotation :: forall a f
+              . (Corecursive f)
+              => Annotated a (Base f) -> f
+noAnnotation = cata go
+  where go :: AnnotatedF a (Base f) f -> f
+        go (AnnotatedF (_,x)) = embed x
