@@ -12,7 +12,8 @@ module Toan.Error.ErrorType (
   showErrorType,
   Error(..),
   errorPos,
-  showError
+  showError,
+  showErrors
 )
 where
 
@@ -25,7 +26,8 @@ data ErrorType
   | EmptySExpr
   | LambdaArgNotIdent
   | LambdaNoArgs
-  | FunctionAppNoArg
+  | FunctionCallNoArg
+  | Megaparsec T.Text
 
   deriving (Eq)
 
@@ -40,11 +42,15 @@ showErrorType (KeywordMisused x) = T.concat ["'", x, "' is a reserved keyword."]
 showErrorType EmptySExpr = "Illegal empty sexpression."
 showErrorType LambdaArgNotIdent = "Lambda argument is not a valid identifier."
 showErrorType LambdaNoArgs = "Lambda expression must have at least one argument."
-showErrorType FunctionAppNoArg = "Function call without any argument."
+showErrorType FunctionCallNoArg = "Function call without any argument."
+showErrorType (Megaparsec x) = x
 
 showError :: Error -> T.Text
 showError (Error Nothing err) = showErrorType err
-showError (Error (Just x) err) = T.concat [T.pack $ startPosPretty x, showErrorType err]
+showError (Error (Just x) err) = T.concat [T.pack $ startPosPretty x, " ", showErrorType err]
+
+showErrors :: [Error] -> T.Text
+showErrors = T.intercalate "\n\n" . map showError
 
 instance Show ErrorType where
   show = T.unpack . showErrorType

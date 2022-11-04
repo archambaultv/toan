@@ -27,3 +27,8 @@ data NExpr
   deriving (Show, Eq)
 
 makeBaseFunctor ''NExpr
+
+instance (Show a) => Show (NExprF a) where
+  show (NNameF n) = "NNameF (" ++ show n ++ ")"
+  show (NLamF n e) = "NLamF (" ++ show n ++ ")" ++ "(" ++ show e ++ ")"
+  show (NAppF e1 e2) = "NAppF (" ++ show e1 ++ ")" ++ "(" ++ show e2 ++ ")"
