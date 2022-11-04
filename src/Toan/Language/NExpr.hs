@@ -21,9 +21,9 @@ import qualified Data.Text as T
 type Name = T.Text
 
 data NExpr
-  = EName Name
-  | ELam Name NExpr
-  | EApp NExpr NExpr
+  = NName Name
+  | NLam Name NExpr
+  | NApp NExpr NExpr
   deriving (Show, Eq)
 
 makeBaseFunctor ''NExpr

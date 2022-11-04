@@ -16,7 +16,9 @@ module Toan.Parser.NExpr (
 )
 where
 
+import Data.Functor.Foldable
 import qualified Data.Text as T
+import qualified Data.List.NonEmpty as NE
 import Toan.RecursionScheme
 import Toan.Error
 import Toan.Annotated
@@ -31,8 +33,9 @@ type PNExprF = LocatedF' NExprF
 lambdaKeyword :: T.Text
 lambdaKeyword = "lambda"
 
--- Takes care of errors and location automatically
-para' :: (SExprF Token (PSExpr, PNExpr) -> Validation ErrorType (NExprF PNExpr))
+-- Takes care of errors automatically
+-- Unwraps the Annotated constructor
+para' :: ((Location, SExprF Token (PSExpr, PNExpr)) -> Validation [Error] PNExpr)
       -> PSExpr 
       -> Validation [Error] PNExpr
 para' f = paraT f'
@@ -40,25 +43,44 @@ para' f = paraT f'
   -- We don't use paraM because Validation doesn't have a monad instance
   f' :: Validation [Error] (PSExprF (PSExpr, PNExpr)) -> Validation [Error] PNExpr
   f' (Failure err) = Failure err
-  f' (Success (AnnotatedF (l, x))) = 
-    case f x of
-      Failure err -> Failure [Error (Just l) err]
-      Success x' -> Success $ Annotated (l, x')
+  f' (Success (AnnotatedF x)) = f x
 
 sexprToExpr :: PSExpr -> Either [Error] PNExpr
 sexprToExpr = validationToEither . para' alg
-  where alg :: SExprF Token (PSExpr, PNExpr) -> Validation ErrorType (NExprF PNExpr)
-        alg = undefined
-        -- alg (SAtomF (_, TIdentifier x)) = pure $ EName x
-        -- alg (SListF []) = Failure $ (Error Nothing EmptySExpr)
-        -- alg (SListF [_]) = Failure $ (Error Nothing FunctionAppNoArg)
-        -- alg (SListF (lambda:args:body:[]))
-        --   | noAnnotation (snd lambda) == EName lambdaKeyword
-        --   = parseLambda args body
+  where alg :: (Location, SExprF Token (PSExpr, PNExpr)) -> Validation [Error]  PNExpr
+        alg (l, SAtomF (TIdentifier x)) = pure $ Annotated (l, NNameF x)
+        alg (l, SListF []) = Failure [errorPos l EmptySExpr]
+        alg (l, SListF [_]) = Failure [errorPos l FunctionAppNoArg]
+        alg (l, SListF (lambda:args:body:[]))
+          | noAnnotation (snd lambda) == NName lambdaKeyword
+          = case parseArgs (fst args) of
+              Failure err -> Failure err
+              Success ns -> pure $ (curryArgs l) ns (snd body)
         -- alg (Annotated l (SListF (xs))) = 
         --   parseApp xs >>= pure . Annotated l
 
-        parseLambda = undefined
+        parseArgs :: PSExpr -> Validation [Error] (NE.NonEmpty Name)
+        parseArgs (Annotated (l, (SAtomF (TIdentifier x))))= pure $ x NE.:| []
+        parseArgs (Annotated (l, (SListF []))) = Failure [errorPos l LambdaNoArgs] 
+        parseArgs (Annotated (l, (SListF xs))) =
+          let -- go :: ListF PSExpr [Name] -> [Name]
+              -- go Nil = []
+              -- go Cons (Annotated _ (SAtomF (TIdentifier x))) xs = x : xs
+              -- go Cons (Annotated l _) = 
+              parseListArgs :: [PSExpr] -> Validation [Error] [Name]
+              parseListArgs = undefined
+          in case parseListArgs xs of
+               Failure err -> Failure err
+               Success xs' -> pure $ head xs' NE.:| tail xs'
+
+        curryArgs :: Location -> NE.NonEmpty Name -> PNExpr -> PNExpr
+        curryArgs l (x1 NE.:| xs) body = 
+          let go :: ListF Name PNExpr -> PNExpr
+              go Nil = body
+              go (Cons x b) = Annotated (l, NLamF x b)
+              body' = cata go xs
+          in Annotated (l, NLamF x1 body')
+
 
         -- parseLambda :: [PSExpr] -> (PSExpr, PNExpr) Either Error (ExprF PExpr)
         -- parseLambda args body =

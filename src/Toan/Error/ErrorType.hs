@@ -11,6 +11,7 @@ module Toan.Error.ErrorType (
   ErrorType(..),
   showErrorType,
   Error(..),
+  errorPos,
   showError
 )
 where
@@ -30,6 +31,9 @@ data ErrorType
 
 data Error = Error (Maybe Location) ErrorType
   deriving (Eq)
+
+errorPos :: Location -> ErrorType -> Error
+errorPos l t = Error (Just l) t
 
 showErrorType :: ErrorType -> T.Text
 showErrorType (KeywordMisused x) = T.concat ["'", x, "' is a reserved keyword."]
