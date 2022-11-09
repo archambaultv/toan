@@ -12,6 +12,8 @@
 
 module Toan.Annotated (
   Annotated(..),
+  annotation,
+  aFunctor,
   AnnotatedF(..),
   mapBaseFunctor,
   mapAnnotation,
@@ -24,6 +26,12 @@ import Data.Functor.Foldable
 
 -- Functors with annotations
 newtype Annotated a f = Annotated (a, f (Annotated a f))
+
+annotation :: Annotated a f -> a
+annotation (Annotated (a,_)) = a
+
+aFunctor :: Annotated a f -> f (Annotated a f)
+aFunctor (Annotated (_,x)) = x
 
 newtype AnnotatedF a f r = AnnotatedF (a, f r)
  deriving (Show, Functor, Foldable, Traversable)

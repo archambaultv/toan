@@ -8,33 +8,24 @@
 -- Stability   :  experimental
 
 module Toan.RecursionScheme (
-  cataT,
   cataM,
   paraT,
   paraM
 )
 where
 
+import Control.Monad ((<=<))
 import Data.Functor.Foldable
 
 -- Catamorphism for traversable structure and effectful actions.
 -- For example, to compute with errors without having to manually handle them :
--- cataT (ListF Int Int -> Either Error Int)
-cataT :: forall a f t 
-        . (Applicative f, Traversable (Base t), Recursive t) 
-        => (f (Base t a) -> f a) 
-        -> t
-        -> f a
-cataT f = c
-  where c :: t -> f a
-        c = f . sequenceA . fmap c . project
-
+-- cataM (ListF Int Int -> Either Error Int)
 cataM :: forall a f t 
         . (Monad f, Traversable (Base t), Recursive t) 
         => (Base t a -> f a) 
         -> t
         -> f a
-cataM f = cataT (\x -> x >>= f)
+cataM f = c where c = f <=< (traverse c . project)
 
 -- Paramorphism for traversable structure and effectful actions
 paraT :: forall a f t 

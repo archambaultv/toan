@@ -11,12 +11,14 @@
 module Toan.Language.NExpr (
   Name,
   NExpr(..),
-  NExprF(..)
+  NExprF(..),
+  ANExpr
 )
 where
 
 import Data.Functor.Foldable.TH (makeBaseFunctor)
 import qualified Data.Text as T
+import Toan.Annotated
 
 type Name = T.Text
 
@@ -27,6 +29,8 @@ data NExpr
   deriving (Show, Eq)
 
 makeBaseFunctor ''NExpr
+
+type ANExpr a = Annotated a NExprF
 
 instance (Show a) => Show (NExprF a) where
   show (NNameF n) = "NNameF (" ++ show n ++ ")"

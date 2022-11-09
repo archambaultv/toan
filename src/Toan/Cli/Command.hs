@@ -34,6 +34,7 @@ runCommand' :: Command -> ExceptT [Error] IO ()
 runCommand' (CEval inputPath) = do
   sexp <- decodeFile inputPath
   nexp <- liftEither $ P.sexprToExpr sexp
+  --let exp = aNexprToAExpr nexp
   lift $ putStrLn (show $ (noAnnotation nexp :: NExpr))
 
 -- Decode file as an SExpr
