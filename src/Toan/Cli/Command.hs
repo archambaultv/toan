@@ -20,7 +20,8 @@ import qualified Data.Text as T
 import qualified Toan.Parser as P
 import Toan.Error
 import Toan.Language.NExpr (NExpr)
-import Toan.Annotated (noAnnotation)
+import Toan.Fix.Annotated (extractAll)
+import Toan.Fix.Fix (showFix)
 
 -- | The commands accepted by the command line interface
 data Command = CEval FilePath
@@ -35,7 +36,7 @@ runCommand' (CEval inputPath) = do
   sexp <- decodeFile inputPath
   nexp <- liftEither $ P.sexprToExpr sexp
   --let exp = aNexprToAExpr nexp
-  lift $ putStrLn (show $ (noAnnotation nexp :: NExpr))
+  lift $ putStrLn (showFix $ (extractAll nexp :: NExpr))
 
 -- Decode file as an SExpr
 decodeFile :: FilePath -> ExceptT [Error] IO P.PSExpr

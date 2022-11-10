@@ -14,7 +14,6 @@ module Toan.Parser.SExpr
   token,
   identifier,
   PSExpr,
-  PSExprF,
   parseSExpr,
   decodeOne,
   decode
@@ -28,7 +27,7 @@ import qualified Text.Megaparsec.Char as M
 import qualified Text.Megaparsec.Char.Lexer as L
 import qualified Data.Text as T
 import Toan.SExpr.SExpr
-import Toan.Annotated
+import Toan.Fix.Annotated
 import Toan.Parser.Location
 
 -- A parsed SExpr is an expresssion of tokens with location annotation
@@ -44,8 +43,7 @@ identifier = do
   cs <- M.takeWhileP Nothing (\c -> isAlphaNum c || isSymbol c)
   return $ T.pack $ (c1 : M.chunkToTokens (Proxy :: Proxy s) cs)
 
-type PSExpr = Located' (SExprF Token)
-type PSExprF = LocatedF' (SExprF Token)
+type PSExpr = AnnotateFix ((,) Location) (SExprF Token)
 
 ws :: forall e s m .  (M.MonadParsec e s m, M.Token s ~ Char) => m ()
 ws = L.space M.space1 
@@ -64,7 +62,7 @@ sExprList = do
     ((Span pos1 _), _) <- L.lexeme ws sexpStart
     xs <- M.sepEndBy parseSExpr ws
     ((Span _ pos2), _) <- sexpEnd
-    return $ Annotated ((Span pos1 pos2), (SListF xs))
+    return $ AnnF ((Span pos1 pos2), (SListF xs))
 
 -- | The 'parseSExpr' function return a parser for parsing
 -- S-expression ('SExpr'), that is either an atom (@'SAtom' _@) or a
@@ -72,7 +70,7 @@ sExprList = do
 sExprToken :: (M.MonadParsec e s m, M.TraversableStream s, M.Token s ~ Char) => m PSExpr
 sExprToken = do
   (l, t) <- located token
-  return $ Annotated (l, (SAtomF t))
+  return $ AnnF (l, (SAtomF t))
 
 -- | The 'parseSExpr' function return a parser for parsing
 -- S-expression ('SExpr'), that is either an atom (@'SAtom' _@) or a

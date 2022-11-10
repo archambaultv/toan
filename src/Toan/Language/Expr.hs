@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, 
-    TemplateHaskell, TypeFamilies, ScopedTypeVariables #-}
+    PatternSynonyms, ScopedTypeVariables #-}
 
 -- |
 -- Module      :  Toan.Language.Expr
@@ -12,9 +12,12 @@
 module Toan.Language.Expr (
   Name,
   Index,
-  Expr(..),
   ExprF(..),
-  AExpr,
+  Expr,
+  pattern EName,
+  pattern EIndex,
+  pattern ELam,
+  pattern EApp,
   nexprToExpr,
   -- aNexprToAExpr,
   algNExprToExpr,
@@ -22,36 +25,39 @@ module Toan.Language.Expr (
 )
 where
 
+import Data.Fix (Fix(..))
 import Data.Set (Set)
-import Data.Functor.Foldable (cata, project)
+import Data.Functor.Foldable (cata)
 import qualified Data.Set as S
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import Data.Functor.Foldable.TH (makeBaseFunctor)
-import Toan.Annotated
-import Toan.Language.NExpr (Name, NExpr, NExprF(..), ANExpr)
+import Toan.Language.NExpr (Name, NExpr, NExprF(..))
 
 type Index = Int
 
-data Expr
-  = EName Name
-  | EIndex Index
-  | ELam Expr
-  | EApp Expr Expr
-  deriving (Show, Eq)
+data ExprF r
+  = ENameF Name
+  | EIndexF Index
+  | ELamF r
+  | EAppF r r
+  deriving (Show, Eq, Functor, Foldable, Traversable)
 
-makeBaseFunctor ''Expr
+type Expr = Fix ExprF
 
-type AExpr a = Annotated a ExprF
+pattern EName :: Name -> Expr
+pattern EName x = Fix (ENameF x)
+
+pattern EIndex :: Index -> Expr
+pattern EIndex x = Fix (EIndexF x)
+
+pattern ELam :: Expr -> Expr
+pattern ELam x = Fix (ELamF x)
+
+pattern EApp :: Expr -> Expr -> Expr
+pattern EApp e1 e2 = Fix (EAppF e1 e2)
 
 nexprToExpr :: NExpr -> Expr
 nexprToExpr e = cata algNExprToExpr e (HM.empty, 0)
-
-data Fix f = Fix {unfix :: f (Fix f)}
-
-newtype AnnotationF a b r = Annotation (a, b r)
-  deriving (Eq, Show, Functor, Foldable, Traversable)
-type Annotation a b = Fix (AnnotationF a b)
 
 -- aNexprToAExpr :: forall a . ANExpr a -> AExpr a
 -- aNexprToAExpr e = cata go e (HM.empty, 0)
