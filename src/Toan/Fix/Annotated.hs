@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, PatternSynonyms,
-    ScopedTypeVariables #-}
+    ScopedTypeVariables, RankNTypes #-}
 
 -- |
 -- Module      :  Toan.Fix.Annotated
@@ -79,15 +79,59 @@ pattern AnnF :: w (f (AnnotateFix w f)) -> AnnotateFix w f
 pattern AnnF x = Fix (Annotate x)
 {-# COMPLETE AnnF #-}
 
+-- Removes the Annotate constructor
 cataAnn :: (Functor w, Functor f) 
         => (w (f a) -> a) 
         -> AnnotateFix w f 
         -> a
 cataAnn f = cata (f . runAnnotate)
 
+-- Removes the annotate constructor
 paraAnn :: (Functor w, Functor f) 
         => (w (f (AnnotateFix w f, a)) -> a)
         -> AnnotateFix w f 
         -> a
 paraAnn f = para (f . runAnnotate)
+
+
+baseToAnnotateFix :: (Comonad w)
+                  => (forall r . f1 (t -> r) -> t -> f2 r)
+                  -> w (f1 (t -> AnnotateFix w f2)) 
+                  -> t 
+                  -> AnnotateFix w f2
+baseToAnnotateFix g x a = Fix 
+                        $ Annotate 
+                        $ fmap (\w -> g (extract w) a)
+                        $ duplicate x
+
+cool :: (Functor f1, Functor f2, Comonad w)
+    => (forall r . f1 (t -> r) -> t -> f2 r)
+    -> AnnotateFix w f1
+    -> t
+    -> AnnotateFix w f2
+cool g x t = cataAnn (baseToAnnotateFix g) x t
+
+-- An algebra on the original functor is still
+-- valid even with the annotation
+
+-- foo :: (Functor f, Comonad w)
+--         => (f (acc -> Fix f2) -> acc -> Fix f2)
+--         -> (w (f (acc -> AnnotateFix w f2)) -> acc -> AnnotateFix w f2)
+-- foo f = 
+
+-- bar :: (Functor f, Comonad w)
+--     => (f (acc -> Fix f2) -> acc -> Fix f2)
+--     -> (forall b . f2 b -> f2 )
+--     -> AnnotateFix w f
+--     -> acc
+--     -> AnnotateFix w f2
+-- bar f = c 
+--   where c = f . fmap (fmap c) . unFix
+
+-- foo :: (Functor f)
+--     => (forall b . f (acc -> b) -> acc -> f2 b) 
+--     -> Fix f 
+--     -> acc 
+--     -> Fix f2
+-- foo g f = Fix . cata (pure . g)
 
