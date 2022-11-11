@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, TemplateHaskell, TypeFamilies #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, 
+    TemplateHaskell, PatternSynonyms #-}
 
 -- |
 -- Module      :  Toan.SExpr.SExpr
@@ -9,26 +10,26 @@
 -- Stability   :  experimental
 
 module Toan.SExpr.SExpr (
-  SExpr(..),
-  SExprF(..)
+  SExprF(..),
+  SExpr,
+  pattern SList,
+  pattern SAtom
 )
 where
 
-import Data.Bifunctor
-import Data.Functor.Foldable.TH (makeBaseFunctor)
+import Data.Bifunctor.TH
+import Data.Fix (Fix(..))
 
-data SExpr a = SList [SExpr a]
-             | SAtom a
-  deriving (Eq, Show, Functor, Traversable, Foldable)
+data SExprF a r = SListF [r]
+                | SAtomF a
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
-makeBaseFunctor ''SExpr
+$(deriveBifunctor ''SExprF)
 
-instance (Show a, Show r) => Show (SExprF a r) where
-  show (SListF xs) = "SListF (" ++ show xs ++ ")"
-  show (SAtomF a) = show a
+type SExpr a = Fix (SExprF a)
 
-instance Bifunctor SExprF where
-  first foo (SAtomF a) = SAtomF (foo a)
-  first _ (SListF xs) = (SListF xs)
+pattern SList :: [SExpr a] -> SExpr a
+pattern SList x = Fix (SListF x)
 
-  second foo x = fmap foo x
+pattern SAtom :: a -> SExpr a
+pattern SAtom x = Fix (SAtomF x)

@@ -28,6 +28,9 @@ dependencies:
 - optparse-applicative
 - mtl
 - bifunctors
+- unordered-containers
+- data-fix
+- comonad
 
 ghc-options:
 - -Wall
