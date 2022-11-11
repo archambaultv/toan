@@ -103,28 +103,3 @@ functorToAnnotateFix g x a = Fix
                         $ Annotate 
                         $ fmap (\w -> g (extract w) a)
                         $ duplicate x
-
--- An algebra on the original functor is still
--- valid even with the annotation
-
--- foo :: (Functor f, Comonad w)
---         => (f (acc -> Fix f2) -> acc -> Fix f2)
---         -> (w (f (acc -> AnnotateFix w f2)) -> acc -> AnnotateFix w f2)
--- foo f = 
-
--- bar :: (Functor f, Comonad w)
---     => (f (acc -> Fix f2) -> acc -> Fix f2)
---     -> (forall b . f2 b -> f2 )
---     -> AnnotateFix w f
---     -> acc
---     -> AnnotateFix w f2
--- bar f = c 
---   where c = f . fmap (fmap c) . unFix
-
--- foo :: (Functor f)
---     => (forall b . f (acc -> b) -> acc -> f2 b) 
---     -> Fix f 
---     -> acc 
---     -> Fix f2
--- foo g f = Fix . cata (pure . g)
-
