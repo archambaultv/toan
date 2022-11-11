@@ -19,7 +19,7 @@ import Data.Functor.Foldable
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NE
 import Toan.Error
-import Toan.Fix.Annotated
+import Toan.Fix.Annotate
 import Toan.SExpr.SExpr
 import Toan.Language.NExpr
 import Toan.Parser.Location

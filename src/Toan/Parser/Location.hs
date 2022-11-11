@@ -13,8 +13,6 @@ module Toan.Parser.Location
     M.initialPos,
     Location(..),
     Located,
-    -- LocatedF,
-    -- locationF,
     located,
     startPosPretty,
     endPosPretty
@@ -40,13 +38,6 @@ endPosPretty (Span _ s) = M.sourcePosPretty s
 
 -- | The 'Located' datatype adds a source span to the type @a@
 type Located a = (Location, a)
-
--- -- | The 'Located' datatype adds a source span to the type @a@ recursively
--- type LocatedF f = Annotated Located f
-
--- -- | Returns the location
--- locationF :: LocatedF f -> Location
--- locationF = fst . unfix
 
 -- | The 'located' function adds a source span to a parser.
 located :: (M.MonadParsec e s m, M.TraversableStream s) => m a -> m (Located a)

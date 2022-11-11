@@ -27,7 +27,7 @@ import qualified Text.Megaparsec.Char as M
 import qualified Text.Megaparsec.Char.Lexer as L
 import qualified Data.Text as T
 import Toan.SExpr.SExpr
-import Toan.Fix.Annotated
+import Toan.Fix.Annotate
 import Toan.Parser.Location
 
 -- A parsed SExpr is an expresssion of tokens with location annotation

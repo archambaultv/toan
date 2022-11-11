@@ -2,14 +2,14 @@
     ScopedTypeVariables, RankNTypes #-}
 
 -- |
--- Module      :  Toan.Fix.Annotated
+-- Module      :  Toan.Fix.Annotate
 -- Copyright   :  © 2022 Vincent Archambault
 -- License     :  MIT
 --
 -- Maintainer  :  Vincent Archambault <vincentarchambault@icloud.com>
 -- Stability   :  experimental
 
-module Toan.Fix.Annotated (
+module Toan.Fix.Annotate (
   Annotate(..),
   extractA,
   extendA,
@@ -20,7 +20,8 @@ module Toan.Fix.Annotated (
   pattern Ann,
   pattern AnnF,
   cataAnn,
-  paraAnn
+  paraAnn,
+  functorToAnnotateFix
 )
 where
 
@@ -93,23 +94,15 @@ paraAnn :: (Functor w, Functor f)
         -> a
 paraAnn f = para (f . runAnnotate)
 
-
-baseToAnnotateFix :: (Comonad w)
+functorToAnnotateFix :: (Comonad w)
                   => (forall r . f1 (t -> r) -> t -> f2 r)
                   -> w (f1 (t -> AnnotateFix w f2)) 
                   -> t 
                   -> AnnotateFix w f2
-baseToAnnotateFix g x a = Fix 
+functorToAnnotateFix g x a = Fix 
                         $ Annotate 
                         $ fmap (\w -> g (extract w) a)
                         $ duplicate x
-
-cool :: (Functor f1, Functor f2, Comonad w)
-    => (forall r . f1 (t -> r) -> t -> f2 r)
-    -> AnnotateFix w f1
-    -> t
-    -> AnnotateFix w f2
-cool g x t = cataAnn (baseToAnnotateFix g) x t
 
 -- An algebra on the original functor is still
 -- valid even with the annotation

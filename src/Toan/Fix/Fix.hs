@@ -10,18 +10,19 @@
 
 module Toan.Fix.Fix (
   showFix,
-  baseToFix
+  functorToFix
 )
 where
 
 import Data.Fix (Fix(..))
-import Data.Functor.Foldable (cata)
+import Data.Functor.Foldable (para)
 
-showFix :: forall f . (Functor f, Show (f String)) => Fix f -> String
-showFix = cata show
+showFix :: (Functor f) => (f (Fix f, String) -> String) -> Fix f -> String
+showFix = para
+
 
 -- Takes a function from the base functors f1 and f2 to the Fix f1 and Fix f2
 -- types. To use with Cata for example.
-baseToFix :: (forall r . f1 (t -> r) -> t -> f2 r)
+functorToFix :: (forall r . f1 (t -> r) -> t -> f2 r)
           -> (f1 (t -> Fix f2) -> t -> Fix f2)
-baseToFix g x acc = Fix $ g x acc
+functorToFix g x acc = Fix $ g x acc
