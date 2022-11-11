@@ -14,14 +14,15 @@ module Toan.Fix.Annotate (
   extractA,
   extendA,
   duplicateA,
-  AnnotateFix,
+  AFix,
   extractOne,
   extractAll,
   pattern Ann,
   pattern AnnF,
   cataAnn,
   paraAnn,
-  functorToAnnotateFix
+  functorToAFix,
+  functorToAFix2
 )
 where
 
@@ -30,10 +31,10 @@ import Control.Comonad (Comonad(..))
 import Data.Functor.Foldable
 
 -- We wish we could do this for a comonad w and functor f
--- type AnnotateFix w f = Fix (\x -> w (f x))
+-- type AFix w f = Fix (\x -> w (f x))
 -- Basically we annotated each layer of f with the comonad w
 -- For example, to add a SourcePos to a tree, we could say :
--- type WithPos = AnnotateFix (Pos,) TreeF
+-- type WithPos = AFix (Pos,) TreeF
 --    which we want equivalent to
 -- type WithPos = Fix (\x -> (Pos, TreeF x))
 
@@ -59,47 +60,65 @@ duplicateA :: (Comonad w)
            -> (Annotate w (Annotate w f) x)
 duplicateA = extendA id
 
+-- Ann is shorter than Annotate ;-)
 pattern Ann :: w (f x) -> Annotate w f x
 pattern Ann x = Annotate x
 {-# COMPLETE Ann #-}
 
 -- Now the type we really want
-type AnnotateFix w f = Fix (Annotate w f)
+type AFix w f = Fix (Annotate w f)
 
 -- Remove one layer of annotation
-extractOne :: (Comonad w) => AnnotateFix w f -> f (AnnotateFix w f)
+extractOne :: (Comonad w) => AFix w f -> f (AFix w f)
 extractOne = extract . runAnnotate . unFix
 
 -- Remove all layers of annotation
-extractAll :: forall w f . (Comonad w, Functor f) => AnnotateFix w f -> Fix f
+extractAll :: forall w f . (Comonad w, Functor f) => AFix w f -> Fix f
 extractAll = cata alg
   where alg :: Annotate w f (Fix f) -> Fix f
         alg = Fix . extractA
 
-pattern AnnF :: w (f (AnnotateFix w f)) -> AnnotateFix w f
+-- Removes the boiler plate (Fix (Annotate ...)) in pattern matchin
+pattern AnnF :: w (f (AFix w f)) -> AFix w f
 pattern AnnF x = Fix (Annotate x)
 {-# COMPLETE AnnF #-}
 
 -- Removes the Annotate constructor
 cataAnn :: (Functor w, Functor f) 
         => (w (f a) -> a) 
-        -> AnnotateFix w f 
+        -> AFix w f 
         -> a
 cataAnn f = cata (f . runAnnotate)
 
 -- Removes the annotate constructor
 paraAnn :: (Functor w, Functor f) 
-        => (w (f (AnnotateFix w f, a)) -> a)
-        -> AnnotateFix w f 
+        => (w (f (AFix w f, a)) -> a)
+        -> AFix w f 
         -> a
 paraAnn f = para (f . runAnnotate)
 
-functorToAnnotateFix :: (Comonad w)
+functorToAFix :: (Comonad w)
                   => (forall r . f1 (t -> r) -> t -> f2 r)
-                  -> w (f1 (t -> AnnotateFix w f2)) 
+                  -> w (f1 (t -> AFix w f2)) 
                   -> t 
-                  -> AnnotateFix w f2
-functorToAnnotateFix g x a = Fix 
+                  -> AFix w f2
+functorToAFix g x a = Fix 
                         $ Annotate 
                         $ fmap (\w -> g (extract w) a)
                         $ duplicate x
+
+unAFix :: (Comonad w) => AFix w f -> f (AFix w f)
+unAFix = extract . runAnnotate . unFix
+
+functorToAFix2 :: (Comonad w)
+                  => (forall r . f1 (t -> r) -> t -> Either (AFix w f2) (f2 r))
+                  -> w (f1 (t -> AFix w f2)) 
+                  -> t 
+                  -> AFix w f2
+functorToAFix2 g x a = Fix 
+                     $ Annotate
+                     $ fmap (\w -> foo $ g (extract w) a)
+                     $ duplicate x
+        where foo (Left y) = unAFix y
+              foo (Right y) = y
+              

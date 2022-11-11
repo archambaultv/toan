@@ -25,7 +25,7 @@ import Toan.Language.NExpr
 import Toan.Parser.Location
 import Toan.Parser.SExpr
 
-type PNExpr = AnnotateFix ((,) Location) NExprF
+type PNExpr = AFix ((,) Location) NExprF
 
 lambdaKeyword :: T.Text
 lambdaKeyword = "lambda"

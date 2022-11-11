@@ -43,7 +43,7 @@ identifier = do
   cs <- M.takeWhileP Nothing (\c -> isAlphaNum c || isSymbol c)
   return $ T.pack $ (c1 : M.chunkToTokens (Proxy :: Proxy s) cs)
 
-type PSExpr = AnnotateFix ((,) Location) (SExprF Token)
+type PSExpr = AFix ((,) Location) (SExprF Token)
 
 ws :: forall e s m .  (M.MonadParsec e s m, M.Token s ~ Char) => m ()
 ws = L.space M.space1 

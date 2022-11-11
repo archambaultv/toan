@@ -14,43 +14,54 @@ module Toan.Language.SmallSteps (
 )
 where
 
+import Control.Comonad
 import Data.Functor.Foldable
+import Toan.Fix.Fix
+import Toan.Fix.Annotate
 import Toan.Language.Expr
 
 -- Increase all free variables by n
 shift :: Int -> Expr -> Expr
-shift n t = cata alg t 0
-  where alg :: ExprF (Int -> Expr) -> (Int -> Expr)
-        alg (ENameF x) _ = EName x
-        alg (EIndexF x) i =
-          if x < i
-          then EIndex x
-          else EIndex (x + n)
-        alg (ELamF t1) i =
-          let t1' = t1 (i + 1)
-          in ELam t1'
-        alg (EAppF t1 t2) i =
-          let t1' = t1 i
-              t2' = t2 i
-          in EApp t1' t2' 
+shift n t = cata (functorToFix algShift) t (n, 0)
+
+shiftA :: (Comonad w) => Int -> AFix w ExprF -> AFix w ExprF
+shiftA n t = cataAnn (functorToAFix algShift) t (n, 0)
+
+algShift :: ExprF ((Int, Int) -> r) -> ((Int, Int) -> ExprF r)
+algShift (ENameF x) _ = ENameF x
+algShift (EIndexF x) (n, i) =
+  if x < i
+  then EIndexF x
+  else EIndexF (x + n)
+algShift (ELamF t1) (n, i) =
+  let t1' = t1 (n, i + 1)
+  in ELamF t1'
+algShift (EAppF t1 t2) x =
+  let t1' = t1 x
+      t2' = t2 x
+  in EAppF t1' t2'
 
 -- Substitution for variable #0
 subst :: Expr -> Expr -> Expr
-subst body arg = cata alg body 0
-  where alg :: ExprF (Int -> Expr) -> (Int -> Expr)
-        alg (ENameF x) _ = EName x
-        alg (EIndexF x) n = 
-          if x == n 
-          then shift n arg 
-          else if x < n then EIndex x else EIndex (x - 1)
-        alg (ELamF t1) n = 
-          let t1' = t1 (n + 1)
-          in ELam t1'
-        alg (EAppF t1 t2) n =
-          let t1' = t1 n
-              t2' = t2 n
-          in EApp t1' t2'
-          
+subst body arg = cata (functorToFix2 algSubst) body (flip shift arg, 0)
+
+substA :: (Comonad w) => (AFix w ExprF) -> (AFix w ExprF) -> (AFix w ExprF)
+substA body arg = cataAnn (functorToAFix2 algSubst) body (flip shiftA arg, 0)
+
+algSubst :: ExprF ((Int -> a, Int) -> r) -> (Int -> a, Int) -> Either a (ExprF r)
+algSubst (ENameF x) _ = Right $ ENameF x
+algSubst (EIndexF x) (arg, n) = 
+  if x == n 
+  then Left $ arg n
+  else Right $ if x < n then EIndexF x else EIndexF (x - 1)
+algSubst (ELamF t1) (arg, n) = 
+  let t1' = t1 (arg, n + 1)
+  in Right $ ELamF t1'
+algSubst (EAppF t1 t2) x =
+  let t1' = t1 x
+      t2' = t2 x
+  in Right $ EAppF t1' t2'
+
 -- Takes a small step if possible
 smallStep :: Expr -> Maybe Expr
 smallStep = para alg

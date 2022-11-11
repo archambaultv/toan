@@ -75,8 +75,8 @@ pattern EApp e1 e2 = Fix (EAppF e1 e2)
 nexprToExpr :: NExpr -> Expr
 nexprToExpr e = cata (functorToFix algNExprToExpr) e (HM.empty, 0)
 
-nexprToExprAnn :: (Comonad w) => AnnotateFix w NExprF -> AnnotateFix w ExprF
-nexprToExprAnn e = cataAnn (functorToAnnotateFix algNExprToExpr) e (HM.empty, 0)
+nexprToExprAnn :: (Comonad w) => AFix w NExprF -> AFix w ExprF
+nexprToExprAnn e = cataAnn (functorToAFix algNExprToExpr) e (HM.empty, 0)
 
 -- Compute the set of free variables
 algFreeVars :: ExprF (Set T.Text) -> Set T.Text
