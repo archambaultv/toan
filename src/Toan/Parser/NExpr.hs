@@ -34,7 +34,7 @@ failure :: Location -> ErrorType -> Validation [Error] a
 failure l t = Failure [errorPos l t]
 
 sexprToExpr :: PSExpr -> Either [Error] PNExpr
-sexprToExpr = validationToEither . paraAnn alg
+sexprToExpr = validationToEither . para (alg . runAnnotate)
   where alg :: (Location, SExprF Token (PSExpr, Validation [Error] PNExpr)) 
             -> Validation [Error] PNExpr
         alg (l, SAtomF (TIdentifier x)) = 

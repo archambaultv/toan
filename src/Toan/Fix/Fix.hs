@@ -9,18 +9,22 @@
 -- Stability   :  experimental
 
 module Toan.Fix.Fix (
-  showFix,
   functorToFix,
-  functorToFix2
+  functorToFix2,
+  Alg,
+  AlgW,
+  CoAlg,
+  MCoAlg
 )
 where
 
 import Control.Comonad
 import Data.Fix (Fix(..))
-import Data.Functor.Foldable (para)
 
-showFix :: (Functor f) => (f (Fix f, String) -> String) -> Fix f -> String
-showFix = para
+type Alg f a = f a -> a
+type AlgW f w a = f (w a) -> a
+type CoAlg f a = a -> f a
+type MCoAlg f m a = a -> f (m a)
 
 -- Takes a function from the base functors f1 and f2 to the Fix f1 and Fix f2
 -- types. To use with Cata for example.

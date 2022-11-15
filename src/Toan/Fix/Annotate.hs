@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, PatternSynonyms,
-    ScopedTypeVariables, RankNTypes #-}
+    ScopedTypeVariables, RankNTypes, TemplateHaskell, TupleSections #-}
 
 -- |
 -- Module      :  Toan.Fix.Annotate
@@ -19,22 +19,24 @@ module Toan.Fix.Annotate (
   extractAll,
   pattern Ann,
   pattern AnnF,
-  cataAnn,
-  paraAnn,
+  layerToCoAlg,
+  layerToCoAlgZygo,
   functorToAFix,
   functorToAFix2
 )
 where
 
+import Text.Show.Deriving (deriveShow1)
 import Data.Fix (Fix(..))
 import Control.Comonad (Comonad(..))
 import Data.Functor.Foldable
+import Toan.Fix.Fix
 
 -- We wish we could do this for a comonad w and functor f
 -- type AFix w f = Fix (\x -> w (f x))
 -- Basically we annotated each layer of f with the comonad w
 -- For example, to add a SourcePos to a tree, we could say :
--- type WithPos = AFix (Pos,) TreeF
+-- type WithPos = AFix ((,) Pos) TreeF
 --    which we want equivalent to
 -- type WithPos = Fix (\x -> (Pos, TreeF x))
 
@@ -42,6 +44,8 @@ import Data.Functor.Foldable
 -- So we introduce the type Annotate to go around this limitation.
 newtype Annotate w f x = Annotate {runAnnotate :: w (f x)}
   deriving (Show, Eq, Functor, Foldable, Traversable)
+
+$(deriveShow1 ''Annotate)
 
 -- Annotate is just a wrapper around w. So we can micmic its behavior.
 -- Annotate w f x is a comonad for (f x), but I don't know how to show this
@@ -60,6 +64,11 @@ duplicateA :: (Comonad w)
            -> (Annotate w (Annotate w f) x)
 duplicateA = extendA id
 
+-- joinA :: (forall a . w2 (w1 a) -> w3 a)
+--       -> (Annotate w2 (Annotate w1 f) b)
+--       -> (Annotate w3 f b)
+-- joinA join (Annotate x) = Annotate (join (runAnnotate x))
+
 -- Ann is shorter than Annotate ;-)
 pattern Ann :: w (f x) -> Annotate w f x
 pattern Ann x = Annotate x
@@ -75,7 +84,7 @@ extractOne = extract . runAnnotate . unFix
 -- Remove all layers of annotation
 extractAll :: forall w f . (Comonad w, Functor f) => AFix w f -> Fix f
 extractAll = cata alg
-  where alg :: Annotate w f (Fix f) -> Fix f
+  where alg :: Alg (Annotate w f) (Fix f)
         alg = Fix . extractA
 
 -- Removes the boiler plate (Fix (Annotate ...)) in pattern matchin
@@ -83,19 +92,67 @@ pattern AnnF :: w (f (AFix w f)) -> AFix w f
 pattern AnnF x = Fix (Annotate x)
 {-# COMPLETE AnnF #-}
 
--- Removes the Annotate constructor
-cataAnn :: (Functor w, Functor f) 
-        => (w (f a) -> a) 
-        -> AFix w f 
-        -> a
-cataAnn f = cata (f . runAnnotate)
+-- Annotates Fix f with the results of the layer function
+layerToCoAlg :: forall a f
+             .  (Functor f)
+             => (forall r . (a, f r) -> a)
+             -> CoAlg (Annotate ((,) a) f) (a, Fix f)
+layerToCoAlg layerF (a0, x0) = 
+  let a :: a
+      a = layerF (a0, unFix x0)
+  in Annotate (a0, fmap (a,) (unFix x0))
 
--- Removes the annotate constructor
-paraAnn :: (Functor w, Functor f) 
-        => (w (f (AFix w f, a)) -> a)
-        -> AFix w f 
-        -> a
-paraAnn f = para (f . runAnnotate)
+-- Much like a zygo morphism, but for layer anamorphism
+layerToCoAlgZygo :: forall a b f
+                 . (Functor f)
+                 => (forall r . (b, f r) -> b)
+                 -> (forall r . ((b,a), f r) -> a)
+                 -> CoAlg (Annotate ((,) (b,a)) f) ((b, a), Fix f)
+layerToCoAlgZygo layerB layerA ((b0, a0), x0) =                  
+  let b :: b
+      b = layerB (b0, unFix x0)
+      a :: a
+      a = layerA ((b0, a0), unFix x0)
+  in Annotate ((b0, a0), fmap ((b, a),) (unFix x0))
+
+-- layerToAlg :: forall a b f
+--            .  (Functor f)
+--            => (forall r . (a, f r) -> b)
+--            -> Alg f (a -> b) -- f (a -> b) -> a -> b
+-- layerToAlg layerF x a = layerF (a, x)
+  
+  -- Fix $ fmap (layerF . (a,)) x
+
+-- Keeps the context used to create the type Fix f
+annotateCoAlg :: (Comonad w)
+              => CoAlg f (w a)
+              -> CoAlg (Annotate w f) (w a)
+annotateCoAlg coAlg x = Annotate 
+                      $ fmap coAlg
+                      $ duplicate x
+
+-- annotateCoAlg2 :: (Comonad w1, Comonad w2)
+--                -> CoAlg f (w1 a)
+--                -> CoAlg f (w2 (w1 a))
+--                -> CoAlg (Annotate w2 (Annotate w1 f)) (w2 (w1 a))
+-- annotateCoAlg2 coAlg1 coAlg2 x =
+--   let x1 :: w1 a
+--       x1 = extract x
+--       r1 :: Annotate w1 f (w1 a)
+--       r1 = (annotateCoAlg coAlg1) x1
+
+--       r2 = annotateCoAlg coAlg2 (runAnnotate x)
+--   in 
+
+-- joinCoAlg :: w2 (w1 a) -> w3 a
+--           -> w3 a -> w2 (w1 a)
+--           -> CoAlg (Annotate w2 (Annotate w1 f)) (w2 (w1 a))
+--           -> CoAlg (Annotate w3 f) (w3 a)
+-- joinCoAlg join split coAlg = joinA join . coAlg . split
+
+annotateAlg :: (w (f a) -> a)
+            -> Alg (Annotate w f) a
+annotateAlg alg = alg . runAnnotate
 
 functorToAFix :: (Comonad w)
                   => (forall r . f1 (t -> r) -> t -> f2 r)

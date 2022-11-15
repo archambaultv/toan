@@ -18,10 +18,11 @@ import Control.Monad.Except (runExceptT, ExceptT(..), lift, liftEither)
 import qualified Text.Megaparsec as M
 import qualified Data.Text as T
 import qualified Toan.Parser as P
+import Toan.Language.NExpr (NExpr)
 import Toan.Error
-import Toan.Language.Expr (Expr, nexprToExprAnn, showExprF)
+
+-- import Toan.Language.Expr (Expr, nexprToExprAnn)
 import Toan.Fix.Annotate (extractAll)
-import Toan.Fix.Fix (showFix)
 
 -- | The commands accepted by the command line interface
 data Command = CEval FilePath
@@ -35,8 +36,9 @@ runCommand' :: Command -> ExceptT [Error] IO ()
 runCommand' (CEval inputPath) = do
   sexp <- decodeFile inputPath
   nexp <- liftEither $ P.sexprToExpr sexp
-  let exp1 = nexprToExprAnn nexp
-  lift $ putStrLn (showFix showExprF $ (extractAll exp1 :: Expr))
+  let exp1 = nexp -- nexprToExprAnn nexp
+  lift $ putStrLn (show $ (extractAll exp1 :: NExpr))
+  -- lift $ putStrLn (showFix showExprF $ (extractAll exp1 :: Expr))
 
 -- Decode file as an SExpr
 decodeFile :: FilePath -> ExceptT [Error] IO P.PSExpr
