@@ -18,7 +18,7 @@ module Toan.Language.Expr (
   pattern EIndex,
   pattern ELam,
   pattern EApp,
-  -- nexprToExpr,
+  nexprToExpr,
   -- nexprToExprAnn,
   -- countLambdas,
   -- freeVars
@@ -35,7 +35,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Toan.Fix.Annotate
 import Toan.Fix.Fix
-import Toan.Language.NExpr (Name, Index, NExpr, NExprF(..))
+import Toan.Language.NExpr (Name, Index, NExpr, NExprF(..), freeVarLevel)
 import qualified Toan.Language.NExpr as NE
 
 data ExprF r
@@ -67,38 +67,27 @@ pattern ELam x = Fix (ELamF x)
 pattern EApp :: Expr -> Expr -> Expr
 pattern EApp e1 e2 = Fix (EAppF e1 e2)
 
--- nexprToExpr :: NExpr -> Expr
--- nexprToExpr e = hylo (annotateAlg algNExprToExpr)
---                      NE.countLambdas
---                      ((HM.empty, 0), e)
+nexprToExpr :: NExpr -> Expr
+nexprToExpr e = ana coAlgNExprToExp (ana freeVarLevel ((0, HM.empty), e))
 
--- nexprToExprAnn :: (Comonad w) => AFix w NExprF -> AFix w ExprF
--- nexprToExprAnn e = cata (functorToAFix algNExprToExpr . runAnnotate) e (HM.empty, 0)
+nexprToExprAnn :: (Comonad w) => AFix w NExprF -> AFix w ExprF
+nexprToExprAnn e = ana coAlgNExprToExp' (ana freeVarLevel' ((0, HM.empty), e))
 
--- -- Compute the set of free variables
--- freeVars :: Alg ExprF (Set T.Text)
--- freeVars (ENameF name) = S.singleton name
--- freeVars fVars = foldr S.union S.empty fVars
+-- Compute the set of free variables
+freeVars :: Alg ExprF (Set T.Text)
+freeVars (ENameF name) = S.singleton name
+freeVars fVars = foldr S.union S.empty fVars
 
--- -- This CoAlg doesn't do much, it is used to generate the countLambdas coAlg
--- countL :: CoAlg ExprF (Integer, Expr)
--- countL (i,ELam x) = ELamF (i + 1, x)
--- countL (i,e) = fmap (i,) (unFix e)
+-- Translate a named expression into an expression
+coAlgNExprToExp :: CoAlg ExprF (AFix ((,) (Index, HM.HashMap Name Index)) NExprF )
+coAlgNExprToExp (AnnF ((nbOfLambdas, m), NNameF x)) = 
+  case HM.lookup x m of
+    Nothing -> ENameF x
+    (Just i) -> EIndexF (nbOfLambdas - i)
+coAlgNExprToExp (AnnF (_, NLamF _ e)) = ELamF e
+coAlgNExprToExp (AnnF (_, NAppF e1 e2)) = EAppF e1 e2 
 
--- countLambdas :: CoAlg (Annotate ((,) Integer) ExprF) (Integer, Expr) 
--- countLambdas = annotateCoAlg countL
-
--- algNExprToExpr ::((HM.HashMap Name Index, Index), NExprF Expr)
---                -> Expr
--- algNExprToExpr  ((m, nbOfLambdas), NNameF x) = 
---   case HM.lookup x m of
---     Nothing -> EName x
---     (Just i) -> EIndex (nbOfLambdas - i)
--- algNExprToExpr (_, NLamF _ r) = ELam r
--- algNExprToExpr (_, NAppF r1 r2) = EApp r1 r2
-
--- -- Translate a named expression into an expression
--- algNExprToExpr :: NExprF ((HM.HashMap Name Index, Index) -> r) 
+-- NExprF ((HM.HashMap Name Index, Index) -> r) 
 --                -> (HM.HashMap Name Index, Index) 
 --                -> ExprF r
 -- algNExprToExpr (NNameF x) (m, nbOfLambdas) = 

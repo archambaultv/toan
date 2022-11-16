@@ -67,20 +67,3 @@ freeVarLevelL ((_, m), _) = m
 freeVarLevel :: CoAlg (Annotate ((,) (Integer, HM.HashMap Name Integer)) NExprF) 
                     ((Integer, HM.HashMap Name Integer), NExpr)
 freeVarLevel = layerToCoAlgZygo countLambdasL freeVarLevelL
-
--- freeVarLevel :: CoAlg (Annotate ((,) (HM.HashMap Name Integer, Integer)) NExprF)
---              -> ((HM.HashMap Name Integer, Integer), NExpr)
--- freeVarLevel = annotateCoAlg2 countL freeVarL
-
-  -- algNExprToExpr :: NExprF ((HM.HashMap Name Index, Index) -> r) 
---                -> (HM.HashMap Name Index, Index) 
---                -> ExprF r
--- algNExprToExpr (NNameF x) (m, nbOfLambdas) = 
---   case HM.lookup x m of
---     Nothing -> ENameF x
---     (Just i) -> EIndexF (nbOfLambdas - i)
--- algNExprToExpr (NLamF x next) (m, nbOfLambdas) = 
---   let n = nbOfLambdas + 1
---       r = next (HM.insert x n m, n)
---   in ELamF r
--- algNExprToExpr (NAppF next1 next2) acc = EAppF (next1 acc) (next2 acc) 

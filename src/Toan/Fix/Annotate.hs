@@ -20,12 +20,14 @@ module Toan.Fix.Annotate (
   pattern Ann,
   pattern AnnF,
   layerToCoAlg,
+  layerToAFixCoAlg,
   layerToCoAlgZygo,
   functorToAFix,
   functorToAFix2
 )
 where
 
+import Data.Bifunctor
 import Text.Show.Deriving (deriveShow1)
 import Data.Fix (Fix(..))
 import Control.Comonad (Comonad(..))
@@ -97,10 +99,57 @@ layerToCoAlg :: forall a f
              .  (Functor f)
              => (forall r . (a, f r) -> a)
              -> CoAlg (Annotate ((,) a) f) (a, Fix f)
-layerToCoAlg layerF (a0, x0) = 
+layerToCoAlg layerF x = 
   let a :: a
-      a = layerF (a0, unFix x0)
-  in Annotate (a0, fmap (a,) (unFix x0))
+      a = layerF $ fmap unFix x
+  in Annotate $ fmap (fmap (a,) . unFix) x
+    -- Annotate (a0, fmap (a,) (unFix x0))
+
+layerToCoAlg4 :: forall a f w
+             .  (Functor f, Bifunctor w, Functor (w a))
+             => (forall r . w a (f r) -> a)
+             -> CoAlg (Annotate (w a) f) (w a (Fix f))
+layerToCoAlg4 layerF w = 
+  let -- Compute the next value
+      a :: a
+      a = layerF (fmap unFix w)
+
+      -- The context updated with the new value
+      w' :: w a (Fix f)
+      w' = first (const a) w
+
+      -- Push the new context inside the recursive Fix f
+      foo :: (Fix f) -> f (w a (Fix f))
+      foo f = fmap (\y -> fmap (const y) w')
+            $ unFix f
+
+  in Annotate $ fmap foo w
+
+layerToAFixCoAlg :: forall a f w
+             .  (Functor f, Comonad w)
+             => (forall r . (a, f r) -> a)
+             -> CoAlg (Annotate w (Annotate ((,) a) f)) (a, AFix w f)
+layerToAFixCoAlg layerF (a0, x0) = 
+  let x :: f (AFix w f)
+      x = extract $ runAnnotate $ unFix x0
+      a :: a
+      a = layerF (a0, x)
+  in Annotate
+     $ fmap (\_ -> Annotate (a0, fmap (a,) x))
+     $ duplicate (runAnnotate $ unFix x0)
+
+-- layerToAFixCoAlg :: forall a f w
+--              .  (Functor f, Comonad w)
+--              => CoAlg (Annotate ((,) a) f) (a, Fix f)
+--              -> CoAlg (Annotate w (Annotate ((,) a) f)) (a, AFix w f)
+-- layerToAFixCoAlg coAlg (a0, x0) = 
+--   let x :: Fix f
+--       x = extractAll x0
+--       a :: a
+--       a = coAlg (a0, x)
+--   in Annotate
+--      $ fmap (\_ -> Annotate (a0, fmap (a,) (runAnnotate $ unFix x)))
+--      $ duplicate (runAnnotate $ unFix x0)
 
 -- Much like a zygo morphism, but for layer anamorphism
 layerToCoAlgZygo :: forall a b f
