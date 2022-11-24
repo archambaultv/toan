@@ -17,7 +17,7 @@ where
 import Control.Comonad
 import Data.Functor.Foldable
 import Toan.Fix.Fix
-import Toan.Fix.Annotate
+import Toan.Fix.Attribute
 import Toan.Language.Expr
 
 -- Increase all free variables by n
@@ -25,7 +25,7 @@ import Toan.Language.Expr
 -- shift n t = cata (functorToFix algShift) t (n, 0)
 
 -- shiftA :: (Comonad w) => Int -> AFix w ExprF -> AFix w ExprF
--- shiftA n t = cata (functorToAFix algShift . runAnnotate) t (n, 0)
+-- shiftA n t = cata (functorToAFix algShift . runAttribute) t (n, 0)
 
 -- algShift :: ExprF ((Int, Int) -> r) -> ((Int, Int) -> ExprF r)
 -- algShift (ENameF x) _ = ENameF x
@@ -46,7 +46,7 @@ import Toan.Language.Expr
 -- subst body arg = cata (functorToFix2 algSubst) body (flip shift arg, 0)
 
 -- substA :: (Comonad w) => (AFix w ExprF) -> (AFix w ExprF) -> (AFix w ExprF)
--- substA body arg = cata (functorToAFix2 algSubst . runAnnotate) body (flip shiftA arg, 0)
+-- substA body arg = cata (functorToAFix2 algSubst . runAttribute) body (flip shiftA arg, 0)
 
 -- algSubst :: ExprF ((Int -> a, Int) -> r) -> (Int -> a, Int) -> Either a (ExprF r)
 -- algSubst (ENameF x) _ = Right $ ENameF x

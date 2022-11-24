@@ -19,7 +19,7 @@ module Toan.Parser.Location
    )
   where
 
--- import Toan.Annotated (Annotated, AnnotatedF)
+-- import Toan.Attributed (Attributed, AttributedF)
 import qualified Text.Megaparsec as M
 
 -- Taken from https://www.reddit.com/r/haskell/comments/4x22f9/labelling_ast_nodes_with_locations/d6cmdy9/

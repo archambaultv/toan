@@ -17,9 +17,7 @@ module Toan.Language.NExpr (
   pattern NName,
   pattern NLam,
   pattern NApp,
-  countLambdasL,
   countLambdas,
-  freeVarLevelL,
   freeVarLevel
 )
 where
@@ -28,8 +26,6 @@ import Text.Show.Deriving (deriveShow1)
 import Data.Fix (Fix(..))
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict as HM
-import Toan.Fix.Fix
-import Toan.Fix.Annotate
 
 type Name = T.Text
 type Index = Integer
@@ -53,17 +49,10 @@ pattern NLam n x = Fix (NLamF n x)
 pattern NApp :: NExpr -> NExpr -> NExpr
 pattern NApp e1 e2 = Fix (NAppF e1 e2)
 
-countLambdasL :: (Integer, NExprF r) -> Integer
-countLambdasL (i, NLamF _ _) = i + 1
-countLambdasL (i, _) = i
+countLambdas :: Integer -> NExprF r -> Integer
+countLambdas i (NLamF _ _) = i + 1
+countLambdas i _ = i
 
-countLambdas :: CoAlg (Annotate ((,) Integer) NExprF) (Integer, NExpr) 
-countLambdas = layerToCoAlg countLambdasL
-
-freeVarLevelL :: ((Integer, HM.HashMap Name Integer), NExprF r) -> HM.HashMap Name Integer
-freeVarLevelL ((i, m), NLamF n _) = HM.insert n i m
-freeVarLevelL ((_, m), _) = m
-
-freeVarLevel :: CoAlg (Annotate ((,) (Integer, HM.HashMap Name Integer)) NExprF) 
-                    ((Integer, HM.HashMap Name Integer), NExpr)
-freeVarLevel = layerToCoAlgZygo countLambdasL freeVarLevelL
+freeVarLevel :: (Integer, HM.HashMap Name Integer) -> NExprF r -> HM.HashMap Name Integer
+freeVarLevel (i, m) (NLamF n _) = HM.insert n i m
+freeVarLevel (_, m) _ = m

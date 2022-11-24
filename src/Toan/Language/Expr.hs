@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, 
-    PatternSynonyms, ScopedTypeVariables, TupleSections, TemplateHaskell #-}
+    PatternSynonyms, ScopedTypeVariables, TupleSections, TemplateHaskell,
+    ViewPatterns, RankNTypes #-}
 
 -- |
 -- Module      :  Toan.Language.Expr
@@ -18,10 +19,7 @@ module Toan.Language.Expr (
   pattern EIndex,
   pattern ELam,
   pattern EApp,
-  nexprToExpr,
-  -- nexprToExprAnn,
-  -- countLambdas,
-  -- freeVars
+  nexprToExpr
 )
 where
 
@@ -33,9 +31,8 @@ import Data.Functor.Foldable (cata, ana)
 import qualified Data.Set as S
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import Toan.Fix.Annotate
-import Toan.Fix.Fix
-import Toan.Language.NExpr (Name, Index, NExpr, NExprF(..), freeVarLevel)
+import Toan.Fix.Attribute
+import Toan.Language.NExpr
 import qualified Toan.Language.NExpr as NE
 
 data ExprF r
@@ -67,11 +64,12 @@ pattern ELam x = Fix (ELamF x)
 pattern EApp :: Expr -> Expr -> Expr
 pattern EApp e1 e2 = Fix (EAppF e1 e2)
 
-nexprToExpr :: NExpr -> Expr
-nexprToExpr e = ana coAlgNExprToExp (ana freeVarLevel ((0, HM.empty), e))
+nexprToExpr :: forall w . (Comonad w) => AFix w NExprF -> AFix w ExprF
+nexprToExpr e = ana (copyAttributeW coAlg) ((0, HM.empty), e)
+  where coAlg1 = acc2ToCoAlg countLambdas freeVarLevel
 
-nexprToExprAnn :: (Comonad w) => AFix w NExprF -> AFix w ExprF
-nexprToExprAnn e = ana coAlgNExprToExp' (ana freeVarLevel' ((0, HM.empty), e))
+        coAlg :: CoAlg ExprF ((Index, HM.HashMap Name Index), AFix w NExprF)
+        coAlg = uncurry coAlgNExprToExp . coAlg1
 
 -- Compute the set of free variables
 freeVars :: Alg ExprF (Set T.Text)
@@ -79,23 +77,10 @@ freeVars (ENameF name) = S.singleton name
 freeVars fVars = foldr S.union S.empty fVars
 
 -- Translate a named expression into an expression
-coAlgNExprToExp :: CoAlg ExprF (AFix ((,) (Index, HM.HashMap Name Index)) NExprF )
-coAlgNExprToExp (AnnF ((nbOfLambdas, m), NNameF x)) = 
+coAlgNExprToExp :: forall r . (Index, HM.HashMap Name Index) -> NExprF r -> ExprF r
+coAlgNExprToExp (nbOfLambdas, m) (NNameF x) = 
   case HM.lookup x m of
-    Nothing -> ENameF x
-    (Just i) -> EIndexF (nbOfLambdas - i)
-coAlgNExprToExp (AnnF (_, NLamF _ e)) = ELamF e
-coAlgNExprToExp (AnnF (_, NAppF e1 e2)) = EAppF e1 e2 
-
--- NExprF ((HM.HashMap Name Index, Index) -> r) 
---                -> (HM.HashMap Name Index, Index) 
---                -> ExprF r
--- algNExprToExpr (NNameF x) (m, nbOfLambdas) = 
---   case HM.lookup x m of
---     Nothing -> ENameF x
---     (Just i) -> EIndexF (nbOfLambdas - i)
--- algNExprToExpr (NLamF x next) (m, nbOfLambdas) = 
---   let n = nbOfLambdas + 1
---       r = next (HM.insert x n m, n)
---   in ELamF r
--- algNExprToExpr (NAppF next1 next2) acc = EAppF (next1 acc) (next2 acc)
+      Nothing -> ENameF x
+      (Just i) -> EIndexF (nbOfLambdas - i)
+coAlgNExprToExp _ (NLamF _ e) = ELamF e
+coAlgNExprToExp _ (NAppF e1 e2) = EAppF e1 e2

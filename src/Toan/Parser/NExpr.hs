@@ -19,7 +19,7 @@ import Data.Functor.Foldable
 import qualified Data.Text as T
 import qualified Data.List.NonEmpty as NE
 import Toan.Error
-import Toan.Fix.Annotate
+import Toan.Fix.Attribute
 import Toan.SExpr.SExpr
 import Toan.Language.NExpr
 import Toan.Parser.Location
@@ -34,7 +34,7 @@ failure :: Location -> ErrorType -> Validation [Error] a
 failure l t = Failure [errorPos l t]
 
 sexprToExpr :: PSExpr -> Either [Error] PNExpr
-sexprToExpr = validationToEither . para (alg . runAnnotate)
+sexprToExpr = validationToEither . para (alg . runAttribute)
   where alg :: (Location, SExprF Token (PSExpr, Validation [Error] PNExpr)) 
             -> Validation [Error] PNExpr
         alg (l, SAtomF (TIdentifier x)) = 
@@ -91,7 +91,7 @@ sexprToExpr = validationToEither . para (alg . runAnnotate)
         --         x' <- x
         --         case aFunctor x' of
         --           (EName x) -> (x:) <$> xs
-        --           _ -> Left $ Error (Just . aAnnotation x) LambdaArgNotIdent
+        --           _ -> Left $ Error (Just . aattribute x) LambdaArgNotIdent
 
         --       mkLambda [] = Left $ Error
         --   in do

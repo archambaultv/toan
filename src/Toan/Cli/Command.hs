@@ -23,7 +23,7 @@ import Toan.Language.NExpr (NExpr)
 import Toan.Error
 
 -- import Toan.Language.Expr (Expr, nexprToExprAnn)
-import Toan.Fix.Annotate (extractAll)
+import Toan.Fix.Attribute (extractAll)
 
 -- | The commands accepted by the command line interface
 data Command = CEval FilePath

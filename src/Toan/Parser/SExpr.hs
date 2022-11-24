@@ -27,10 +27,10 @@ import qualified Text.Megaparsec.Char as M
 import qualified Text.Megaparsec.Char.Lexer as L
 import qualified Data.Text as T
 import Toan.SExpr.SExpr
-import Toan.Fix.Annotate
+import Toan.Fix.Attribute
 import Toan.Parser.Location
 
--- A parsed SExpr is an expresssion of tokens with location annotation
+-- A parsed SExpr is an expresssion of tokens with location attribute
 data Token = TIdentifier T.Text
   deriving (Eq, Show)
 
