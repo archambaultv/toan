@@ -16,7 +16,6 @@ where
 
 import Control.Comonad
 import Data.Functor.Foldable
-import Toan.Fix.Fix
 import Toan.Fix.Attribute
 import Toan.Language.Expr
 

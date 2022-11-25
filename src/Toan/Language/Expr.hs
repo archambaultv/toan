@@ -81,6 +81,6 @@ coAlgNExprToExp :: forall r . (Index, HM.HashMap Name Index) -> NExprF r -> Expr
 coAlgNExprToExp (nbOfLambdas, m) (NNameF x) = 
   case HM.lookup x m of
       Nothing -> ENameF x
-      (Just i) -> EIndexF (nbOfLambdas - i)
+      (Just i) -> EIndexF (nbOfLambdas - i - 1)
 coAlgNExprToExp _ (NLamF _ e) = ELamF e
 coAlgNExprToExp _ (NAppF e1 e2) = EAppF e1 e2
