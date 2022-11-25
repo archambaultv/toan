@@ -19,7 +19,6 @@ import qualified Text.Megaparsec as M
 import qualified Data.Text as T
 import qualified Toan.Parser as P
 import Toan.Language.Expr (Expr, nexprToExpr)
-import Toan.Language.NExpr (NExpr)
 import Toan.Error
 import Toan.Fix.Attribute (extractAll)
 

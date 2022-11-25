@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes, ScopedTypeVariables, TupleSections #-}
+
 -- |
 -- Module      :  Toan.Language.SmallSteps
 -- Copyright   :  © 2022 Vincent Archambault
@@ -7,7 +9,7 @@
 -- Stability   :  experimental
 
 module Toan.Language.SmallSteps (
-  -- subst,
+  shift
   -- smallStep,
   -- smallSteps,
   -- normalize
@@ -20,32 +22,25 @@ import Toan.Fix.Attribute
 import Toan.Language.Expr
 
 -- Increase all free variables by n
--- shift :: Int -> Expr -> Expr
--- shift n t = cata (functorToFix algShift) t (n, 0)
+shift :: forall w 
+      .  (Comonad w)
+      => Integer -> AFix w ExprF -> AFix w ExprF
+shift n t = ana coAlg (0, t)
+  where coAlg :: CoAlg (Attribute w ExprF) (Integer, AFix w ExprF)
+        coAlg = copyAttributeW 
+              $ layerToAFix
+              $ joinAccLayer countLambdas (algShift n)
 
--- shiftA :: (Comonad w) => Int -> AFix w ExprF -> AFix w ExprF
--- shiftA n t = cata (functorToAFix algShift . runAttribute) t (n, 0)
-
--- algShift :: ExprF ((Int, Int) -> r) -> ((Int, Int) -> ExprF r)
--- algShift (ENameF x) _ = ENameF x
--- algShift (EIndexF x) (n, i) =
---   if x < i
---   then EIndexF x
---   else EIndexF (x + n)
--- algShift (ELamF t1) (n, i) =
---   let t1' = t1 (n, i + 1)
---   in ELamF t1'
--- algShift (EAppF t1 t2) x =
---   let t1' = t1 x
---       t2' = t2 x
---   in EAppF t1' t2'
+algShift :: forall r . Integer -> Integer -> ExprF r -> ExprF r
+algShift n nbOfLambdas (EIndexF x) =
+  if x < nbOfLambdas
+  then EIndexF x
+  else EIndexF (x + n)
+algShift _ _ x = x
 
 -- -- Substitution for variable #0
 -- subst :: Expr -> Expr -> Expr
 -- subst body arg = cata (functorToFix2 algSubst) body (flip shift arg, 0)
-
--- substA :: (Comonad w) => (AFix w ExprF) -> (AFix w ExprF) -> (AFix w ExprF)
--- substA body arg = cata (functorToAFix2 algSubst . runAttribute) body (flip shiftA arg, 0)
 
 -- algSubst :: ExprF ((Int -> a, Int) -> r) -> (Int -> a, Int) -> Either a (ExprF r)
 -- algSubst (ENameF x) _ = Right $ ENameF x

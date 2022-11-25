@@ -25,8 +25,10 @@ module Toan.Fix.Attribute (
   pattern AnnF,
   copyAttribute,
   copyAttributeW,
-  accToCoAlg,
-  acc2ToCoAlg
+  layerToFix,
+  layerToAFix,
+  joinAcc,
+  joinAccLayer
 )
 where
 
@@ -117,20 +119,34 @@ copyAttributeW coAlg x =
   let h = coAlg x
   in extendA (const h) (unFix (extract x))
 
-accToCoAlg :: (Functor f, Comonad w)
-           => (forall r . a -> f r -> a) -- An accumulator that only depends on the functor, not the value inside
-           -> (a, AFix w f) -> (a, f (a, AFix w f))
-           --  CoAlg (Attribute ((,) a) f) (a, AFix w f)
-accToCoAlg foo (a0, AnnF w) =
-  let a = foo a0 (extract w)
-  in (a0, fmap (a, ) (extract w))
+layerToFix :: (Comonad w)
+           => (forall r . w (f r) -> h (w r))
+           -> CoAlg h (w (Fix f))
+layerToFix foo = foo . fmap unFix
 
-acc2ToCoAlg :: (Functor f, Comonad w)
-           => (forall r . a -> f r -> a) -- An accumulator that only depends on the functor, not the value inside
-           -> (forall r . (a, b) -> f r -> b) -- Another accumulator that only depends on the functor, not the value inside and the previous accumulator value
-           -> ((a, b), AFix w f) -> ((a, b), f ((a,b), AFix w f))
-           -- -> CoAlg (Attribute ((,) (a, b)) f) 
-acc2ToCoAlg foo1 foo2 ((a0, b0), AnnF w) =
-  let a = foo1 a0 (extract w)
-      b = foo2 (a0, b0) (extract w)
-  in ((a0, b0), fmap ((a, b), ) (extract w))
+layerToAFix :: (Comonad w, Comonad w1)
+             => (forall r . w1 (f r) -> h (w1 r))
+             -> CoAlg h (w1 (AFix w f))
+layerToAFix foo = foo . fmap extractOne
+
+-- accToLayer :: (Functor f)
+--            => (forall r . a -> f r -> a) -- An accumulator that only depends on the functor, not the value inside
+--            -> (forall r . (a, f r) -> f (a, r))
+-- accToLayer foo (a0, f0) = fmap (foo a0 f0,) f0
+  
+joinAcc :: (a -> c -> a) -- An accumulator
+        -> ((a, b) -> c -> b) -- Another accumulator that needs the previous accumulator value
+        -> ((a, b) -> c -> (a, b))
+joinAcc foo1 foo2 (a0, b0) f0 =
+  let a = foo1 a0 f0
+      b = foo2 (a0, b0) f0
+  in (a, b)
+
+joinAccLayer :: (Functor h)
+           => (forall r . a -> f r -> a) -- Accumulator
+           -> (forall r . a -> f r -> h r) -- Layer
+           -> (forall r . (a, f r) -> h (a, r)) -- Layer with the accumulator
+joinAccLayer acc coAlg (a0, f0) =
+  let a = acc a0 f0
+      h = coAlg a0 f0
+  in fmap (a,) h

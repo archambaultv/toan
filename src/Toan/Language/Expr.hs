@@ -19,6 +19,8 @@ module Toan.Language.Expr (
   pattern EIndex,
   pattern ELam,
   pattern EApp,
+  countLambdas,
+  freeVars,
   nexprToExpr
 )
 where
@@ -27,13 +29,13 @@ import Text.Show.Deriving (deriveShow1)
 import Data.Fix (Fix(..))
 import Data.Set (Set)
 import Control.Comonad
-import Data.Functor.Foldable (cata, ana)
+import Data.Functor.Foldable (ana)
 import qualified Data.Set as S
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Toan.Fix.Attribute
-import Toan.Language.NExpr
-import qualified Toan.Language.NExpr as NE
+import Toan.Language.NExpr hiding (countLambdas)
+import qualified Toan.Language.NExpr as N
 
 data ExprF r
   = ENameF Name
@@ -43,12 +45,6 @@ data ExprF r
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
 $(deriveShow1 ''ExprF)
-
-addParen :: (Expr, String) -> String
-addParen (_,s) = "(" ++ s ++ ")"
--- addParen (ELam _, s) = "(" ++ s ++ ")"
--- addParen (EApp _ _, s) = "(" ++ s ++ ")"
--- addParen (_, s) = s
 
 type Expr = Fix ExprF
 
@@ -66,10 +62,22 @@ pattern EApp e1 e2 = Fix (EAppF e1 e2)
 
 nexprToExpr :: forall w . (Comonad w) => AFix w NExprF -> AFix w ExprF
 nexprToExpr e = ana (copyAttributeW coAlg) ((0, HM.empty), e)
-  where coAlg1 = acc2ToCoAlg countLambdas freeVarLevel
+  where acc :: (forall r 
+               . (Index, HM.HashMap Name Index)
+              -> NExprF r
+              -> (Index, HM.HashMap Name Index))
+        acc = joinAcc N.countLambdas freeVarLevel
+
+        layer :: ((Index, HM.HashMap Name Index), NExprF r) -> ExprF ((Index, HM.HashMap Name Index),  r)
+        layer = joinAccLayer acc coAlgNExprToExp
 
         coAlg :: CoAlg ExprF ((Index, HM.HashMap Name Index), AFix w NExprF)
-        coAlg = uncurry coAlgNExprToExp . coAlg1
+        coAlg = layerToAFix layer
+
+-- Count the number of lambdas
+countLambdas :: Integer -> ExprF r -> Integer
+countLambdas i (ELamF _) = i + 1
+countLambdas i _ = i
 
 -- Compute the set of free variables
 freeVars :: Alg ExprF (Set T.Text)
