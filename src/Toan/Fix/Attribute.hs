@@ -12,6 +12,7 @@
 module Toan.Fix.Attribute (
   Alg,
   CoAlg,
+  CoAlgM,
   Attribute(..),
   extractA,
   extendA,
@@ -25,10 +26,14 @@ module Toan.Fix.Attribute (
   pattern AnnF,
   copyAttribute,
   copyAttributeW,
+  copyAttributeWM,
   layerToFix,
+  layerToFixM,
   layerToAFix,
+  layerToAFixM,
   joinAcc,
-  joinAccLayer
+  joinAccLayer,
+  joinAccLayerM
 )
 where
 
@@ -39,6 +44,7 @@ import Data.Functor.Foldable
 
 type Alg f a = f a -> a
 type CoAlg f a = a -> f a
+type CoAlgM f m a = a -> f (m a)
 
 -- We wish we could do this for a comonad w and functor f
 -- type AFix w f = Fix (\x -> w (f x))
@@ -119,15 +125,32 @@ copyAttributeW coAlg x =
   let h = coAlg x
   in extendA (const h) (unFix (extract x))
 
+copyAttributeWM :: (Comonad w, Comonad w1)
+              => ((w1 (AFix w f)) -> h (m (w1 (AFix w f))))
+              -> ((w1 (AFix w f)) -> Attribute w h (m (w1 (AFix w f))))
+copyAttributeWM coAlg x =
+  let h = coAlg x
+  in extendA (const h) (unFix (extract x))
+
 layerToFix :: (Comonad w)
            => (forall r . w (f r) -> h (w r))
            -> CoAlg h (w (Fix f))
 layerToFix foo = foo . fmap unFix
 
+layerToFixM :: (Comonad w)
+           => (forall r . w (f r) -> h (m (w r)))
+           -> CoAlgM h m (w (Fix f))
+layerToFixM foo = foo . fmap unFix
+
 layerToAFix :: (Comonad w, Comonad w1)
              => (forall r . w1 (f r) -> h (w1 r))
              -> CoAlg h (w1 (AFix w f))
 layerToAFix foo = foo . fmap extractOne
+
+layerToAFixM :: (Comonad w, Comonad w1)
+             => (forall r . w1 (f r) -> h (m (w1 r)))
+             -> CoAlgM h m (w1 (AFix w f))
+layerToAFixM foo = foo . fmap extractOne
 
 -- accToLayer :: (Functor f)
 --            => (forall r . a -> f r -> a) -- An accumulator that only depends on the functor, not the value inside
@@ -150,3 +173,39 @@ joinAccLayer acc coAlg (a0, f0) =
   let a = acc a0 f0
       h = coAlg a0 f0
   in fmap (a,) h
+
+joinAccLayerM :: (Functor h, Functor m)
+           => (forall r . a -> f r -> a) -- Accumulator
+           -> (forall r . a -> f r -> h (m r)) -- Layer
+           -> (forall r . (a, f r) -> h (m (a, r))) -- Layer with the accumulator
+joinAccLayerM acc coAlg (a0, f0) =
+  let a = acc a0 f0
+      h = coAlg a0 f0
+  in (fmap . fmap) (a,) h
+
+-- joinAccSubst :: (Functor h)
+--            => (forall r . a -> f r -> a) -- Accumulator
+--            -> (forall r . a -> f r -> h (Bool, r)) -- Layer for substitution
+--            -> (forall r . (a -> h r) -> (a, f r) -> h (Either r (a, r))) -- Layer with the accumulator
+-- joinAccSubst acc layer subst (a0, f0) =
+--   let a = acc a0 f0
+--       h = layer subst a0 f0
+--   in fmap (a,) h
+
+-- joinAccSubstM :: (Functor h, Traversable m)
+--            => (forall r . a -> f r -> a) -- Accumulator
+--            -> (forall r . (a -> f r) -> a -> f r -> h (m r)) -- Layer
+--            -> (forall r . (a -> f r1) -> (a, f r1) -> h (m (a, r1))) -- Layer with the accumulator
+-- joinAccSubstM acc coAlg subst (a0, f0) =
+--   let a = acc a0 f0
+--       h = coAlg subst a0 f0
+--   in (traverse . fmap) (a,) h
+
+-- -- Like an apomorphism, but less general.
+-- -- Apo is : (a -> Base t (Either t a) -> a -> t)
+-- -- but with a substitution there is a link between a and t
+-- subst :: (Comonad w)
+--       => (w t -> Base t (Either t (w t)) -> w t -> t)
+--       -> w t
+--       -> t
+-- subst

@@ -20,6 +20,7 @@ import Control.Comonad
 import Data.Functor.Foldable
 import Toan.Fix.Attribute
 import Toan.Language.Expr
+import Data.Fix (Fix(..))
 
 -- Increase all free variables by n
 shift :: forall w 
@@ -38,25 +39,32 @@ algShift n nbOfLambdas (EIndexF x) =
   else EIndexF (x + n)
 algShift _ _ x = x
 
--- -- Substitution for variable #0
--- subst :: Expr -> Expr -> Expr
--- subst body arg = cata (functorToFix2 algSubst) body (flip shift arg, 0)
+-- Substitution for variable #0
+subst :: forall w 
+      .  (Comonad w)
+      => AFix w ExprF -> AFix w ExprF -> AFix w ExprF
+subst arg body = apo coAlg (0, body)
+  where coAlg :: (Integer, AFix w ExprF) 
+              -> (Attribute w ExprF (Either (AFix w ExprF) (Integer, AFix w ExprF)))
+        coAlg = copyAttributeWM coAlg1
 
--- algSubst :: ExprF ((Int -> a, Int) -> r) -> (Int -> a, Int) -> Either a (ExprF r)
--- algSubst (ENameF x) _ = Right $ ENameF x
--- algSubst (EIndexF x) (arg, n) = 
---   if x == n 
---   then Left $ arg n
---   else Right $ if x < n then EIndexF x else EIndexF (x - 1)
--- algSubst (ELamF t1) (arg, n) = 
---   let t1' = t1 (arg, n + 1)
---   in Right $ ELamF t1'
--- algSubst (EAppF t1 t2) x =
---   let t1' = t1 x
---       t2' = t2 x
---   in Right $ EAppF t1' t2'
+        coAlg1 :: (Integer, AFix w ExprF) 
+              -> (ExprF (Either (AFix w ExprF) (Integer, AFix w ExprF)))
+        coAlg1 = layerToAFixM layer
 
--- -- Takes a small step if possible
+        layer :: forall r . (Integer, ExprF r)
+              -> ExprF (Either (AFix w ExprF) (Integer, r))
+        layer = joinAccLayerM countLambdas (algSubst (extractOne . flip shift arg))
+
+algSubst :: (Integer -> ExprF a) -> Integer -> ExprF r -> ExprF (Either a r)
+algSubst arg n (EIndexF x) = 
+  case compare x n of
+    EQ -> fmap Left $ arg n
+    LT -> EIndexF x 
+    GT -> EIndexF (x - 1)
+algSubst _ _ x = fmap Right x
+
+-- -- Takes a small step if possible 
 -- smallStep :: Expr -> Maybe Expr
 -- smallStep = para alg
 --   where alg :: ExprF (Expr, Maybe Expr) -> Maybe Expr
