@@ -11,6 +11,7 @@
 
 module Toan.Fix.Attribute (
   Alg,
+  AlgW,
   CoAlg,
   CoAlgM,
   Attribute(..),
@@ -43,6 +44,7 @@ import Control.Comonad (Comonad(..))
 import Data.Functor.Foldable
 
 type Alg f a = f a -> a
+type AlgW f w a = f (w a) -> a
 type CoAlg f a = a -> f a
 type CoAlgM f m a = a -> f (m a)
 
@@ -132,6 +134,10 @@ copyAttributeWM coAlg x =
   let h = coAlg x
   in extendA (const h) (unFix (extract x))
 
+natToCoAlg :: (forall r . f r -> h r)
+           -> CoAlg h (Fix f)
+natToCoAlg foo = foo . unFix
+
 layerToFix :: (Comonad w)
            => (forall r . w (f r) -> h (w r))
            -> CoAlg h (w (Fix f))
@@ -183,29 +189,11 @@ joinAccLayerM acc coAlg (a0, f0) =
       h = coAlg a0 f0
   in (fmap . fmap) (a,) h
 
--- joinAccSubst :: (Functor h)
---            => (forall r . a -> f r -> a) -- Accumulator
---            -> (forall r . a -> f r -> h (Bool, r)) -- Layer for substitution
---            -> (forall r . (a -> h r) -> (a, f r) -> h (Either r (a, r))) -- Layer with the accumulator
--- joinAccSubst acc layer subst (a0, f0) =
---   let a = acc a0 f0
---       h = layer subst a0 f0
---   in fmap (a,) h
+unitAnnotation :: Fix f -> AFix ((,) ()) f
+unitAnnotation = ana coAlg
+  where coAlg = natToCoAlg
+              $ (\x -> fmap ((),) x)
 
--- joinAccSubstM :: (Functor h, Traversable m)
---            => (forall r . a -> f r -> a) -- Accumulator
---            -> (forall r . (a -> f r) -> a -> f r -> h (m r)) -- Layer
---            -> (forall r . (a -> f r1) -> (a, f r1) -> h (m (a, r1))) -- Layer with the accumulator
--- joinAccSubstM acc coAlg subst (a0, f0) =
---   let a = acc a0 f0
---       h = coAlg subst a0 f0
---   in (traverse . fmap) (a,) h
-
--- -- Like an apomorphism, but less general.
--- -- Apo is : (a -> Base t (Either t a) -> a -> t)
--- -- but with a substitution there is a link between a and t
--- subst :: (Comonad w)
---       => (w t -> Base t (Either t (w t)) -> w t -> t)
---       -> w t
---       -> t
--- subst
+afixToFix :: (forall w . AFix w f -> b)
+          -> Fix f -> b
+afixToFix nt x = nt . unitAnnotation

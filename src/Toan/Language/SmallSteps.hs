@@ -64,11 +64,25 @@ algSubst arg n (EIndexF x) =
     GT -> EIndexF (x - 1)
 algSubst _ _ x = fmap Right x
 
-
 -- ana that applies the substitution directly (Maybe)
 --   - repeat the procedure for Kleen closure
 smallStep1 :: Expr -> Maybe Expr
-smallStep1 = undefined
+smallStep1 e = fmap (apo coAlg) 
+           $ noAsNothing 
+           $ para alg e
+  where
+    alg :: AlgW ExprF ((,) Expr) (SmallStep ExprF)
+    alg (EAppF (ELam e,_) (x, _)) =  Fix $ Subst (e, x)
+    alg x = 
+      let hasSubst = foldr (\a c -> (noAsFalse $ snd a) || c ) False x
+      in if hasSubst
+         then Fix $ No $ Fix $ fmap fst x
+         else Fix $ Yes $ fmap snd x
+
+    coAlg :: CoAlgM (ExprF) (Either Expr) (SmallStep ExprF)
+    coAlg (Fix (No t)) = fmap Left $ unFix t
+    coAlg (Fix (Yes f)) = fmap Right f
+    coAlg (Fix (Subst (e, x))) = subst e x
 
 -- This might not return
 normalize :: Expr -> Expr
@@ -89,16 +103,24 @@ smallSteps1 t = ana coAlg t
 data SmallStepF f r
   = No (Fix f)
   | Yes (f r)
-  | Beta (Fix f, Fix f)
-  deriving (Functor)
+  | Subst (Fix f, Fix f)
+  deriving (Eq, Show, Functor)
 
 type SmallStep f = Fix (SmallStepF f)
+
+noAsFalse :: SmallStep f -> Bool
+noAsFalse = maybe False (const True) . noAsNothing
+
+noAsNothing :: SmallStep f -> Maybe (SmallStep f )
+noAsNothing (Fix (No _)) = Nothing
+noAsNothing x = Just x
 
 smallStep2 :: SmallStep ExprF -> SmallStep ExprF
 smallStep2 = undefined
 
--- smallStep2Normalize . smallStep2 = smallStep1
+toSmallStep2 :: SmallStep ExprF -> Expr
+toSmallStep2 = undefined
+
+-- smallStep2Normalize . smallStep2 . toSmallStep2 = smallStep1
 smallStep2Normalize :: SmallStep ExprF -> Expr
 smallStep2Normalize = undefined
-
--- data SmallStep2 = No | Yes | Beta
