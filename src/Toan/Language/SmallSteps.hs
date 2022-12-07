@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes, ScopedTypeVariables, TupleSections #-}
+{-# LANGUAGE RankNTypes, ScopedTypeVariables, TupleSections, DeriveFunctor #-}
 
 -- |
 -- Module      :  Toan.Language.SmallSteps
@@ -48,7 +48,7 @@ subst arg body = apo coAlg (0, body)
               -> (Attribute w ExprF (Either (AFix w ExprF) (Integer, AFix w ExprF)))
         coAlg = copyAttributeWM coAlg1
 
-        coAlg1 :: (Integer, AFix w ExprF) 
+        coAlg1 :: (Integer, AFix w ExprF)
               -> (ExprF (Either (AFix w ExprF) (Integer, AFix w ExprF)))
         coAlg1 = layerToAFixM layer
 
@@ -64,28 +64,41 @@ algSubst arg n (EIndexF x) =
     GT -> EIndexF (x - 1)
 algSubst _ _ x = fmap Right x
 
--- -- Takes a small step if possible 
--- smallStep :: Expr -> Maybe Expr
--- smallStep = para alg
---   where alg :: ExprF (Expr, Maybe Expr) -> Maybe Expr
---         alg (ENameF _) = Nothing
---         alg (EIndexF _) = Nothing
---         alg (ELamF (_, t1)) = ELam <$> t1
---         alg (EAppF (ELam body, _) (arg, _)) = Just $ subst body arg
---         alg (EAppF (t1, t1M) (t2, t2M)) = 
---           case t1M of
---             (Just t1') -> Just $ EApp t1' t2
---             Nothing -> (EApp t1) <$> t2M
 
--- -- This might not return
--- normalize :: Expr -> Expr
--- normalize = last . smallSteps
+-- ana that applies the substitution directly (Maybe)
+--   - repeat the procedure for Kleen closure
+smallStep1 :: Expr -> Maybe Expr
+smallStep1 = undefined
 
--- -- All the possible steps we can take
--- smallSteps :: Expr -> [Expr]
--- smallSteps t = t : ana coAlg t
---   where coAlg :: Expr -> ListF Expr Expr
---         coAlg x = 
---           case smallStep x of
---             Nothing -> Nil
---             (Just x') -> Cons x' x'
+-- This might not return
+normalize :: Expr -> Expr
+normalize = last . smallSteps1
+
+-- All the possible steps we can take
+smallSteps1 :: Expr -> [Expr]
+smallSteps1 t = ana coAlg t
+  where coAlg :: Expr -> ListF Expr Expr
+        coAlg x = 
+          case smallStep1 x of
+            Nothing -> Nil
+            (Just x') -> Cons x' x'
+
+-- ana that tells where to apply the substitution (SmallStep datatype)
+     -- Procedure to push down the substitution
+     -- repeat the procedure for Kleen closure, pushing down the previous closure
+data SmallStepF f r
+  = No (Fix f)
+  | Yes (f r)
+  | Beta (Fix f, Fix f)
+  deriving (Functor)
+
+type SmallStep f = Fix (SmallStepF f)
+
+smallStep2 :: SmallStep ExprF -> SmallStep ExprF
+smallStep2 = undefined
+
+-- smallStep2Normalize . smallStep2 = smallStep1
+smallStep2Normalize :: SmallStep ExprF -> Expr
+smallStep2Normalize = undefined
+
+-- data SmallStep2 = No | Yes | Beta
