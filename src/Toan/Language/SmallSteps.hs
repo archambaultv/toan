@@ -1,4 +1,5 @@
-{-# LANGUAGE RankNTypes, ScopedTypeVariables, TupleSections, DeriveFunctor #-}
+{-# LANGUAGE RankNTypes, ScopedTypeVariables, TupleSections, DeriveFunctor,
+    PatternSynonyms #-}
 
 -- |
 -- Module      :  Toan.Language.SmallSteps
@@ -64,59 +65,68 @@ algSubst arg n (EIndexF x) =
     GT -> EIndexF (x - 1)
 algSubst _ _ x = fmap Right x
 
--- ana that applies the substitution directly (Maybe)
---   - repeat the procedure for Kleen closure
-smallStep1 :: Expr -> Maybe Expr
-smallStep1 e = fmap (apo coAlg) 
-           $ noAsNothing 
-           $ para alg e
+-- Parallel substitution, the first one from the top for each branch
+congruence :: Expr -> SmallStep ExprF
+congruence = para alg
   where
     alg :: AlgW ExprF ((,) Expr) (SmallStep ExprF)
-    alg (EAppF (ELam e,_) (x, _)) =  Fix $ Subst (e, x)
+    alg (EAppF (ELam e,_) (x, _)) =  Subst e x
     alg x = 
       let hasSubst = foldr (\a c -> (noAsFalse $ snd a) || c ) False x
       in if hasSubst
-         then Fix $ No $ Fix $ fmap fst x
-         else Fix $ Yes $ fmap snd x
+         then Yes $ fmap snd x
+         else No $ Fix $ fmap fst x
 
-    coAlg :: CoAlgM (ExprF) (Either Expr) (SmallStep ExprF)
-    coAlg (Fix (No t)) = fmap Left $ unFix t
-    coAlg (Fix (Yes f)) = fmap Right f
-    coAlg (Fix (Subst (e, x))) = subst e x
+evaluate :: SmallStep ExprF -> Expr
+evaluate = apo coAlg
+  where
+    coAlg :: CoAlgM ExprF (Either Expr) (SmallStep ExprF)
+    coAlg (No t) = fmap Left $ unFix t
+    coAlg (Yes f) = fmap Right f
+    coAlg (Subst e x) = fmap Left $ unFix $ extractAll $ (afixToFix2 subst) e x
 
 -- This might not return
 normalize :: Expr -> Expr
-normalize = last . smallSteps1
+normalize = last . smallSteps
 
 -- All the possible steps we can take
-smallSteps1 :: Expr -> [Expr]
-smallSteps1 t = ana coAlg t
+smallSteps :: Expr -> [Expr]
+smallSteps t = ana coAlg t
   where coAlg :: Expr -> ListF Expr Expr
         coAlg x = 
-          case smallStep1 x of
-            Nothing -> Nil
-            (Just x') -> Cons x' x'
+          case congruence x of
+            (No _) -> Nil
+            y -> let y' = evaluate y in Cons y' y'
 
 -- ana that tells where to apply the substitution (SmallStep datatype)
      -- Procedure to push down the substitution
      -- repeat the procedure for Kleen closure, pushing down the previous closure
 data SmallStepF f r
-  = No (Fix f)
-  | Yes (f r)
-  | Subst (Fix f, Fix f)
+  = NoF (Fix f)
+  | YesF (f r)
+  | SubstF (Fix f) (Fix f)
   deriving (Eq, Show, Functor)
 
 type SmallStep f = Fix (SmallStepF f)
+
+pattern No :: Fix f -> SmallStep f
+pattern No x = Fix (NoF x)
+
+pattern Yes :: f (SmallStep f) -> SmallStep f
+pattern Yes x = Fix (YesF x)
+
+pattern Subst :: Fix f -> Fix f -> SmallStep f
+pattern Subst x y = Fix (SubstF x y)
 
 noAsFalse :: SmallStep f -> Bool
 noAsFalse = maybe False (const True) . noAsNothing
 
 noAsNothing :: SmallStep f -> Maybe (SmallStep f )
-noAsNothing (Fix (No _)) = Nothing
+noAsNothing (No _) = Nothing
 noAsNothing x = Just x
 
-smallStep2 :: SmallStep ExprF -> SmallStep ExprF
-smallStep2 = undefined
+evaluate2 :: SmallStep ExprF -> SmallStep ExprF
+evaluate2 = undefined
 
 toSmallStep2 :: SmallStep ExprF -> Expr
 toSmallStep2 = undefined

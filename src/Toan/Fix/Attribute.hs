@@ -10,10 +10,13 @@
 -- Stability   :  experimental
 
 module Toan.Fix.Attribute (
+  NTrans,
   Alg,
   AlgW,
   CoAlg,
   CoAlgM,
+  natToCoAlg,
+  natToAlg,
   Attribute(..),
   extractA,
   extendA,
@@ -34,7 +37,10 @@ module Toan.Fix.Attribute (
   layerToAFixM,
   joinAcc,
   joinAccLayer,
-  joinAccLayerM
+  joinAccLayerM,
+  unitAnnotation,
+  afixToFix,
+  afixToFix2
 )
 where
 
@@ -43,6 +49,7 @@ import Data.Fix (Fix(..))
 import Control.Comonad (Comonad(..))
 import Data.Functor.Foldable
 
+type NTrans f g = forall r. f r -> g r
 type Alg f a = f a -> a
 type AlgW f w a = f (w a) -> a
 type CoAlg f a = a -> f a
@@ -134,9 +141,13 @@ copyAttributeWM coAlg x =
   let h = coAlg x
   in extendA (const h) (unFix (extract x))
 
-natToCoAlg :: (forall r . f r -> h r)
+natToCoAlg :: NTrans f h
            -> CoAlg h (Fix f)
 natToCoAlg foo = foo . unFix
+
+natToAlg :: NTrans f h
+         -> Alg f (Fix h)
+natToAlg foo = Fix . foo
 
 layerToFix :: (Comonad w)
            => (forall r . w (f r) -> h (w r))
@@ -189,11 +200,17 @@ joinAccLayerM acc coAlg (a0, f0) =
       h = coAlg a0 f0
   in (fmap . fmap) (a,) h
 
-unitAnnotation :: Fix f -> AFix ((,) ()) f
-unitAnnotation = ana coAlg
-  where coAlg = natToCoAlg
-              $ (\x -> fmap ((),) x)
+unitAnnotation :: (Functor f) => Fix f -> AFix ((,) ()) f
+unitAnnotation = ana (Attribute . ((),) . unFix)
+  -- where coAlg :: CoAlg (Attribute ((,) ()) f) f
+  --       coAlg x = ((),x)
 
-afixToFix :: (forall w . AFix w f -> b)
+afixToFix :: (Functor f) 
+          => (AFix ((,) ()) f -> b)
           -> Fix f -> b
-afixToFix nt x = nt . unitAnnotation
+afixToFix nt = nt . unitAnnotation
+
+afixToFix2 :: (Functor f) 
+           => (AFix ((,) ()) f -> AFix ((,) ()) f -> b)
+           -> Fix f -> Fix f -> b
+afixToFix2 nt x y = nt (unitAnnotation x) (unitAnnotation y)
