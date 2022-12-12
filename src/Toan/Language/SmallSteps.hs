@@ -10,10 +10,23 @@
 -- Stability   :  experimental
 
 module Toan.Language.SmallSteps (
-  shift
-  -- smallStep,
-  -- smallSteps,
-  -- normalize
+  shift,
+  shift',
+  SmallStepF(..),
+  SmallStep,
+  algShift,
+  subst,
+  algSubst,
+  beta,
+  betaAlg,
+  evaluate,
+  normalize,
+  smallSteps,
+  pattern No,
+  pattern Yes,
+  pattern Subst,
+  noAsFalse,
+  noAsNothing
 )
 where
 
@@ -24,6 +37,9 @@ import Toan.Language.Expr
 import Data.Fix (Fix(..))
 
 -- Increase all free variables by n
+shift' :: Integer -> Expr -> Expr
+shift' n t = extractAll $ (afixToFix (shift n)) t
+
 shift :: forall w 
       .  (Comonad w)
       => Integer -> AFix w ExprF -> AFix w ExprF
@@ -66,16 +82,20 @@ algSubst arg n (EIndexF x) =
 algSubst _ _ x = fmap Right x
 
 -- Parallel substitution, the first one from the top for each branch
-congruence :: Expr -> SmallStep ExprF
-congruence = para alg
-  where
-    alg :: AlgW ExprF ((,) Expr) (SmallStep ExprF)
-    alg (EAppF (ELam e,_) (x, _)) =  Subst e x
-    alg x = 
-      let hasSubst = foldr (\a c -> (noAsFalse $ snd a) || c ) False x
-      in if hasSubst
-         then Yes $ fmap snd x
-         else No $ Fix $ fmap fst x
+beta :: Expr -> SmallStep ExprF
+beta = para betaAlg
+
+betaAlg :: AlgW ExprF ((,) Expr) (SmallStep ExprF)
+betaAlg (EAppF (ELam e,_) (x, _)) =  Subst e x
+betaAlg x = 
+  let hasSubst = foldr (\a c -> (noAsFalse $ snd a) || c ) False x
+  in if hasSubst
+      then Yes $ fmap snd x
+      else No $ Fix $ fmap fst x
+
+betaNTrans :: Compose ExprF ExprF r -> Annotated ((,) (ExprF r)) ExprF r
+betaNTrans (EAppF (ELamF e) x) = Annotated $ (Just x, e)
+betaNTrans x = Annotated (Nothing, x)
 
 evaluate :: SmallStep ExprF -> Expr
 evaluate = apo coAlg
@@ -94,7 +114,7 @@ smallSteps :: Expr -> [Expr]
 smallSteps t = ana coAlg t
   where coAlg :: Expr -> ListF Expr Expr
         coAlg x = 
-          case congruence x of
+          case beta x of
             (No _) -> Nil
             y -> let y' = evaluate y in Cons y' y'
 
@@ -104,7 +124,7 @@ smallSteps t = ana coAlg t
 data SmallStepF f r
   = NoF (Fix f)
   | YesF (f r)
-  | SubstF (Fix f) (Fix f)
+  | SubstF (f r) r -- Arg Body
   deriving (Eq, Show, Functor)
 
 type SmallStep f = Fix (SmallStepF f)
