@@ -124,13 +124,3 @@ noAsFalse = maybe False (const True) . noAsNothing
 noAsNothing :: SmallStep f -> Maybe (SmallStep f )
 noAsNothing (No _) = Nothing
 noAsNothing x = Just x
-
-evaluate2 :: SmallStep ExprF -> SmallStep ExprF
-evaluate2 = undefined
-
-toSmallStep2 :: SmallStep ExprF -> Expr
-toSmallStep2 = undefined
-
--- smallStep2Normalize . smallStep2 . toSmallStep2 = smallStep1
-smallStep2Normalize :: SmallStep ExprF -> Expr
-smallStep2Normalize = undefined
